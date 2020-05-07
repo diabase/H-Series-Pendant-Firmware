@@ -17,6 +17,7 @@ namespace SerialIo
 	void SendQuoted(const char * array s);
 	void SendFilename(const char * array dir, const char * array name);
 	void SendInt(int i);
+	void SendFloat(float f);
 	void CheckInput();
 }
 

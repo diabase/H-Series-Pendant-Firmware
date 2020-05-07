@@ -30,6 +30,7 @@ struct StringTable
 	CSTRING print;
 	CSTRING console;
 	CSTRING setup;
+	CSTRING pendant;
 	CSTRING current;
 	CSTRING active;
 	CSTRING standby;
@@ -65,6 +66,33 @@ struct StringTable
 	CSTRING clearSettings;
 	CSTRING saveAndRestart;
 	CSTRING infoTimeout;
+
+	// Pendant root
+	CSTRING backToNormal;
+	CSTRING jog;
+	CSTRING offset;
+	CSTRING job;
+
+	// Pendant Jog page
+	CSTRING axis;
+	CSTRING movement;
+	CSTRING currentLocation;
+	CSTRING homing;
+	CSTRING measureZ;
+	CSTRING confirmMeasureZ;
+	CSTRING tools;
+	CSTRING probe;
+
+	// Pendant Offset page
+	CSTRING probeWorkpiece;
+	CSTRING touchOff;
+	CSTRING toolOffset;
+
+	// Pendant Job page
+	CSTRING noJob;
+	CSTRING extruderShort;
+	CSTRING spindleRPM;
+	CSTRING heatControl;
 
 	// Misc
 	CSTRING confirmFactoryReset;
@@ -121,6 +149,7 @@ const StringTable LanguageTables[NumLanguages] =
 		"Print",
 		"Console",
 		"Setup",
+		"Pendant",
 		"Current" THIN_SPACE DEGREE_SYMBOL "C",
 		"Active" THIN_SPACE DEGREE_SYMBOL "C",
 		"Standby" THIN_SPACE DEGREE_SYMBOL "C",
@@ -156,6 +185,33 @@ const StringTable LanguageTables[NumLanguages] =
 		"Clear settings",
 		"Save & Restart",
 		"Info timeout ",					// note space at end
+
+		// Pendant root
+		"Panel",
+		"Jog",
+		"Offset",
+		"Job",
+
+		// Pendant Jog tab
+		"Axis",
+		"Movement",
+		"Current",
+		"Homing",
+		"Measure Z",
+		"Confirm Measure Z",
+		"Tools",
+		"Probe",
+
+		// Pendant Offset tab
+		"Probe Workpiece",
+		"Touch-off Plate",
+		"Tool Offset",
+
+		// Pendant Job tab
+		"No job running",
+		"Extrd. ",
+		"Spindle RPM ",
+		"Heat Control",
 
 		// Misc
 		"Confirm factory reset",
@@ -232,6 +288,7 @@ const StringTable LanguageTables[NumLanguages] =
 		"Druck",
 		"Konsole",
 		"Setup",
+		"Handsteuerung",
 		"Istwert" THIN_SPACE DEGREE_SYMBOL "C",
 		"Aktiv" THIN_SPACE DEGREE_SYMBOL "C",
 		"Standby" THIN_SPACE DEGREE_SYMBOL "C",
@@ -267,6 +324,33 @@ const StringTable LanguageTables[NumLanguages] =
 		"Werks-Reset",
 		"Sichern & Reboot",
 		"Info timeout ",					// note space at end
+
+		// Pendant root
+		"Panel",
+		"Jog",
+		"Offset",
+		"Job",
+
+		// Pendant Jog tab
+		"Achse",
+		"Bewegung",
+		"Aktuell",
+		"Homing",
+		"Z messen",
+		"Confirm Measure Z",
+		"Tools",
+		"Probe",
+
+		// Pendant Offset tab
+		"Werkstück finden",
+		"Tastplatte",
+		"Werkzeug Offset",
+
+		// Pendant Job tab
+		"Kein laufender Job",
+		"Extrd. ",
+		"Spindel Umin ",
+		"Heizungskontrolle",
 
 		// Misc
 		"Alle Einstellungen zurücksetzen",
@@ -343,6 +427,7 @@ const StringTable LanguageTables[NumLanguages] =
 		"Imprimer",
 		"Console",
 		"Installation",
+		"Pendant",
 		"Actuel" THIN_SPACE DEGREE_SYMBOL "C",
 		"Actif" THIN_SPACE DEGREE_SYMBOL "C",
 		"Standby" THIN_SPACE DEGREE_SYMBOL "C",
@@ -378,6 +463,33 @@ const StringTable LanguageTables[NumLanguages] =
 		"Effacer paramêtres",
 		"Sauvegarde & Redémarrage",
 		"Info timeout ",						// note space at end
+
+		// Pendant root
+		"Panel",
+		"Jog",
+		"Offset",
+		"Job",
+
+		// Pendant Jog tab
+		"Axis",
+		"Movement",
+		"Current",
+		"Homing",
+		"Measure Z",
+		"Confirm Measure Z",
+		"Tools",
+		"Probe",
+
+		// Pendant Offset tab
+		"Probe Workpiece",
+		"Touch-off Plate",
+		"Tool Offset",
+
+		// Pendant Job tab
+		"No job running",
+		"Extrd. ",
+		"Spindle RPM ",
+		"Heat Control",
 
 		// Misc
 		"Confirmer le réinitialisation de l'imprimante",
@@ -454,6 +566,7 @@ const StringTable LanguageTables[NumLanguages] =
 		"Imprimir",
 		"Consola",
 		"Configuración",
+		"Pendant",
 		"Actual" THIN_SPACE DEGREE_SYMBOL "C",
 		"Activo" THIN_SPACE DEGREE_SYMBOL "C",
 		"Esperando" THIN_SPACE DEGREE_SYMBOL "C",
@@ -489,6 +602,33 @@ const StringTable LanguageTables[NumLanguages] =
 		"Borrar parámetros",
 		"Guardar y Reiniciar",
 		"Info timeout ",					// note space at end
+
+		// Pendant root
+		"Panel",
+		"Jog",
+		"Offset",
+		"Job",
+
+		// Pendant Jog tab
+		"Axis",
+		"Movement",
+		"Current",
+		"Homing",
+		"Measure Z",
+		"Confirm Measure Z",
+		"Tools",
+		"Probe",
+
+		// Pendant Offset tab
+		"Probe Workpiece",
+		"Touch-off Plate",
+		"Tool Offset",
+
+		// Pendant Job tab
+		"No job running",
+		"Extrd. ",
+		"Spindle RPM ",
+		"Heat Control",
 
 		// Misc
 		"Confirma restablecimiento de fábrica",
@@ -565,6 +705,7 @@ const StringTable LanguageTables[NumLanguages] =
 		"Tisk",
 		"Konzole",
 		"Nastavení",
+		"Pendant",
 		"Aktuální" THIN_SPACE DEGREE_SYMBOL "C",
 		"Aktivní" THIN_SPACE DEGREE_SYMBOL "C",
 		"Nečinná" THIN_SPACE DEGREE_SYMBOL "C",
@@ -600,6 +741,33 @@ const StringTable LanguageTables[NumLanguages] =
 		"Smazat nastavení",
 		"Uložit a Restart",
 		"Info timeout ",					// note space at end
+
+		// Pendant root
+		"Panel",
+		"Jog",
+		"Offset",
+		"Job",
+
+		// Pendant Jog tab
+		"Axis",
+		"Movement",
+		"Current",
+		"Homing",
+		"Measure Z",
+		"Confirm Measure Z",
+		"Tools",
+		"Probe",
+
+		// Pendant Offset tab
+		"Probe Workpiece",
+		"Touch-off Plate",
+		"Tool Offset",
+
+		// Pendant Job tab
+		"No job running",
+		"Extrd. ",
+		"Spindle RPM ",
+		"Heat Control",
 
 		// Misc
 		"Skutečně obnovit tovární nastavení?",

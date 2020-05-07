@@ -139,6 +139,11 @@ event_t ButtonPress::GetEvent() const
 	return button->GetEvent();
 }
 
+float ButtonPress::GetFParam() const
+{
+	return button->GetFParam(index);
+}
+
 int ButtonPress::GetIParam() const
 {
 	return button->GetIParam(index);
@@ -196,15 +201,15 @@ ButtonPress Window::FindEventOutsidePopup(PixelNumber x, PixelNumber y)
 	return (f.IsValid() && Visible(f.GetButton())) ? f : ButtonPress();
 }
 
-void Window::SetPopup(PopupWindow * p, PixelNumber px, PixelNumber py, bool redraw)
+void Window::SetPopup(PopupWindow * p, PixelNumber px, PixelNumber py, bool redraw, const PixelNumber displayX, const PixelNumber displayY)
 {
 	if (px == AutoPlace)
 	{
-		px = (DisplayX - p->GetWidth())/2;
+		px = (displayX - p->GetWidth())/2;
 	}
 	if (py == AutoPlace)
 	{
-		py = (DisplayY - p->GetHeight())/2;
+		py = (displayY - p->GetHeight())/2;
 	}
 	p->SetPos(px, py);
 	Window *pw = this;

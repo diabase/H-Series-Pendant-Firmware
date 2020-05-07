@@ -1,3 +1,10 @@
+# H-Series-Pendant-Firmware
+This for of PanelDueFirmware provides a portrait orientation UI (addtionally to
+the original UI) optimized for use as a Pendant. Various functions can (only)
+be controlled via an encoder wheel.
+
+# Original README
+
 1. To get the latest release binaries go to:
 
 https://github.com/dc42/PanelDueFirmware/releases

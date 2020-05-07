@@ -185,6 +185,7 @@ enum ReceivedDataEvent
 	rcvFilament,
 	rcvFiles,
 	rcvHeaters,
+	rcvCurrentTool,
 	rcvHomed,
 	rcvHstat,
 	rcvPos,
@@ -271,7 +272,7 @@ void FlashData::SetDefaults()
 	touchVolume = Buzzer::DefaultVolume;
 	brightness = Buzzer::DefaultBrightness;
 	language = 0;
-	colourScheme = 0;
+	colourScheme = 1;
 	displayDimmerType = DisplayDimmerType::always;
 	infoTimeout = DefaultInfoTimeout;
 	magic = magicVal;
@@ -488,6 +489,30 @@ void InvertDisplay()
 {
 	nvData.lcdOrientation = static_cast<DisplayOrientation>(nvData.lcdOrientation ^ (ReverseX | ReverseY));
 	lcd.InitLCD(nvData.lcdOrientation, IS_24BIT, IS_ER);
+}
+
+void LandscapeDisplay(const bool withTouch)
+{
+	lcd.fillScr(black);
+	lcd.InitLCD(nvData.lcdOrientation, IS_24BIT, IS_ER);
+	if (withTouch)
+	{
+		touch.init(DisplayX, DisplayY, nvData.touchOrientation);
+		touch.calibrate(nvData.xmin, nvData.xmax, nvData.ymin, nvData.ymax, touchCalibMargin);
+	}
+}
+
+void PortraitDisplay(const bool withTouch)
+{
+	DisplayOrientation portrait = static_cast<DisplayOrientation>(nvData.lcdOrientation ^ (SwapXY | ReverseX));
+	lcd.fillScr(black);
+	lcd.InitLCD(portrait, IS_24BIT, IS_ER);
+	if (withTouch)
+	{
+		DisplayOrientation portraitTouch = static_cast<DisplayOrientation>(nvData.touchOrientation ^ (SwapXY | ReverseX));
+		touch.init(DisplayXP, DisplayYP, portraitTouch);
+		touch.calibrate(nvData.ymin, nvData.ymax, nvData.xmin, nvData.xmax, touchCalibMargin);
+	}
 }
 
 void SetBaudRate(uint32_t rate)
@@ -712,6 +737,7 @@ const ReceiveDataTableEntry fieldTable[] =
 	{ rcvStandby,		"standby^" },
 	{ rcvStatus,		"status" },
 	{ rcvTimesLeft,		"timesLeft^" },
+	{ rcvCurrentTool,	"tool" },
 	{ rcvVolumes,		"volumes" }
 };
 
@@ -796,6 +822,17 @@ void ProcessReceivedValue(const char id[], const char data[], const size_t indic
 			if (GetInteger(data, ival))
 			{
 				UI::UpdateHeaterStatus(indices[0], ival);
+			}
+		}
+		break;
+
+	case rcvCurrentTool:
+		ShowLine;
+		{
+			int32_t ival;
+			if (GetInteger(data, ival))
+			{
+				UI::SetCurrentTool(ival);
 			}
 		}
 		break;

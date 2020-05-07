@@ -10,6 +10,7 @@
 #include "SerialIo.hpp"
 #include "Library/Vector.hpp"
 #include "PanelDue.hpp"
+//#include <math.h>
 
 const size_t MaxArrayNesting = 4;
 
@@ -180,6 +181,31 @@ namespace SerialIo
 			i %= 10;
 		}
 		SendChar((char)((char)i + '0'));
+	}
+
+	// SendFloat will convert a float into a rounded fixed 3 decimal representation.
+	void SendFloat(float f)
+	{
+		String<20> fl;
+		fl.printf("%.3f", f);
+		SendString(fl.c_str());
+//		if (f < 0) {
+//			SendChar('-');
+//			f = -f;
+//		}
+//		const int i = (int) f;
+//		const unsigned int d = (unsigned int) lrintf((f - i) * 1000);
+//		SendInt(i);
+//		SendChar('.');
+//		if (d < 100)
+//		{
+//			SendChar('0');
+//			if (d < 10)
+//			{
+//				SendChar('0');
+//			}
+//		}
+//		SendInt(d);
 	}
 
 	// Receive data processing

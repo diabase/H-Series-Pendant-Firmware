@@ -63,6 +63,7 @@ public:
 
 	event_t GetEvent() const;		
 	int GetIParam() const;
+	float GetFParam() const;
 	const char* array GetSParam() const;		
 	bool operator==(const ButtonPress& other) const;
 	
@@ -148,9 +149,11 @@ public:
 	void Redraw(DisplayField *f);
 	void Show(DisplayField * null f, bool v);
 	void Press(ButtonPress bp, bool v);
-	void SetPopup(PopupWindow * p, PixelNumber px = 0, PixelNumber py = 0, bool redraw = true);
+	void SetPopup(PopupWindow * p, PixelNumber px = 0, PixelNumber py = 0, bool redraw = true, const PixelNumber displayX = DisplayX, const PixelNumber displayY = DisplayY);
+	void SetPopupP(PopupWindow * p, PixelNumber px = 0, PixelNumber py = 0, bool redraw = true) { SetPopup(p, px, py, redraw, DisplayXP, DisplayYP); }
 	PopupWindow * null GetPopup() const { return next; }
 	void ClearPopup(bool redraw = true, PopupWindow *whichOne = nullptr);
+	inline bool IsPopupActive() const { return GetPopup() != nullptr; }
 	bool ObscuredByPopup(const DisplayField *p) const;
 	bool Visible(const DisplayField *p) const;
 	virtual bool Contains(PixelNumber xmin, PixelNumber ymin, PixelNumber xmax, PixelNumber ymax) const = 0;
@@ -347,6 +350,7 @@ public:
 	event_t GetEvent() const override { return evt; }
 	virtual const char* null GetSParam(unsigned int index) const { UNUSED(index); return nullptr; }
 	virtual int GetIParam(unsigned int index) const { UNUSED(index); return 0; }
+	virtual float GetFParam(unsigned int index) const { UNUSED(index); return 0.0f; }
 	virtual void Press(bool p, int index) { UNUSED(p); UNUSED(index); }
 };
 
@@ -356,7 +360,7 @@ class SingleButton : public ButtonBase
 	{
 		const char* null sParam;
 		int iParam;
-		//float fParam;
+		float fParam;
 	};
 	EventParameter param;
 
@@ -371,12 +375,12 @@ public:
 	void SetEvent(event_t e, EventParameter p) { evt = e; param = p; }
 	void SetEvent(event_t e, const char* null sp) { evt = e; param.sParam = sp; }
 	void SetEvent(event_t e, int ip) { evt = e; param.iParam = ip; }
-	//void SetEvent(event_t e, float fp) { evt = e; param.fParam = fp; }
+	void SetEvent(event_t e, float fp) { evt = e; param.fParam = fp; }
 
 	EventParameter GetUParam() const { return param; }
 	const char* null GetSParam(unsigned int index) const override { UNUSED(index); return param.sParam; }
 	int GetIParam(unsigned int index) const override { UNUSED(index); return param.iParam; }
-	//float GetFParam() const { return param.fParam; }
+	float GetFParam(unsigned int index) const { UNUSED(index); return param.fParam; }
 
 	void Press(bool p, int index) override;
 	

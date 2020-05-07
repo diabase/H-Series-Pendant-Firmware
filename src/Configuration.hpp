@@ -58,6 +58,7 @@ const uint32_t DefaultBaudRate = 57600;
 const uint32_t DimDisplayTimeout = 60000;				// dim this display after no activity for this number of milliseconds
 const uint32_t DefaultInfoTimeout = 5;					// information message timeout in seconds
 
-const uint32_t MinimumEncoderCommandInterval = 100;		// minimum time in milliseconds between serial commands sent due to encoder movement
+const uint32_t MinimumEncoderCommandInterval = 50;		// minimum time in milliseconds between serial commands sent due to encoder movement
+const uint32_t MaxEncoderCommandLength = 64;			// maximum length of an encoder movement command
 
 #endif /* CONFIGURATION_H_ */

@@ -31,6 +31,7 @@ namespace UI
 	extern void UpdateCurrentTemperature(size_t heater, float fval);
 	extern void SetNumHeaters(size_t nHeaters);
 	extern void UpdateHeaterStatus(size_t heater, int ival);
+	extern void SetCurrentTool(int ival);
 	extern void ChangeStatus(PrinterStatus oldStatus, PrinterStatus newStatus);
 	extern void UpdateTimesLeft(size_t index, unsigned int seconds);
 	extern bool ChangePage(ButtonBase *newTab);
