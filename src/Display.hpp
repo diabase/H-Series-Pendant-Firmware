@@ -279,8 +279,11 @@ public:
 
 	void SetValue(float v)
 	{
-		val = v;
-		changed = true;
+		if (val != v)
+		{
+			val = v;
+			changed = true;
+		}
 	}
 };
 
@@ -303,8 +306,11 @@ public:
 
 	void SetValue(int v)
 	{
-		val = v;
-		changed = true;
+		if (val != v)
+		{
+			val = v;
+			changed = true;
+		}
 	}
 };
 
