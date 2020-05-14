@@ -1341,12 +1341,12 @@ void CreatePendantOffsetTabFields(const ColourScheme& colours) {
 	mgr.AddField(new StaticTextField(row7P, xPos, fullWidth, TextAlignment::Centre, strings->touchOff));
 	mgr.AddField(new StaticTextField(row10P, xPos, fullWidth, TextAlignment::Centre, strings->toolOffset));
 
-	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonTextBackColour);
-	AddTextButton(row3P, 1, 4, "<= Y", evProbeWorkpiece, "Ymax", DisplayXP);
-	AddTextButton(row4P, 0, 4, "-X =>", evProbeWorkpiece, "Xin", DisplayXP);
-	AddTextButton(row4P, 2, 4, "<= X", evProbeWorkpiece, "Xmax", DisplayXP);
-	AddTextButton(row5P, 1, 4, "-Y =>", evProbeWorkpiece, "Ymin", DisplayXP);
-	AddTextButton(row5P, 3, 4, "<= Z", evProbeWorkpiece, "Zmax", DisplayXP);
+	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonImageBackColour);
+	AddIconButton(row3P, 1, 4, Ymax2min, evProbeWorkpiece, "Ymax", DisplayXP);
+	AddIconButton(row4P, 0, 4, Xmin2max, evProbeWorkpiece, "Xmin", DisplayXP);
+	AddIconButton(row4P, 2, 4, Xmax2min, evProbeWorkpiece, "Xmax", DisplayXP);
+	AddIconButton(row5P, 1, 4, Ymin2max, evProbeWorkpiece, "Ymin", DisplayXP);
+	AddIconButton(row5P, 3, 4, Zmax2min, evProbeWorkpiece, "Zmax", DisplayXP);
 
 	AddTextButton(row8P, 0, 2, "X-Y", evTouchoff, "X-Y", DisplayXP);
 	AddTextButton(row8P, 1, 2, "Z", evTouchoff, "Z", DisplayXP);
