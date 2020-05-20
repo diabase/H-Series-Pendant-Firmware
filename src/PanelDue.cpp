@@ -482,19 +482,19 @@ bool IsSaveNeeded()
 void MirrorDisplay()
 {
 	nvData.lcdOrientation = static_cast<DisplayOrientation>(nvData.lcdOrientation ^ ReverseX);
-	lcd.InitLCD(nvData.lcdOrientation, IS_24BIT, IS_ER);
+	lcd.setOrientation(nvData.lcdOrientation, IS_ER, true);
 }
 
 void InvertDisplay()
 {
 	nvData.lcdOrientation = static_cast<DisplayOrientation>(nvData.lcdOrientation ^ (ReverseX | ReverseY));
-	lcd.InitLCD(nvData.lcdOrientation, IS_24BIT, IS_ER);
+	lcd.setOrientation(nvData.lcdOrientation, IS_ER, true);
 }
 
 void LandscapeDisplay(const bool withTouch)
 {
 	lcd.fillScr(black);
-	lcd.InitLCD(nvData.lcdOrientation, IS_24BIT, IS_ER);
+	lcd.setOrientation(nvData.lcdOrientation, IS_ER, true);
 	if (withTouch)
 	{
 		touch.init(DisplayX, DisplayY, nvData.touchOrientation);
@@ -506,7 +506,7 @@ void PortraitDisplay(const bool withTouch)
 {
 	DisplayOrientation portrait = static_cast<DisplayOrientation>(nvData.lcdOrientation ^ (SwapXY | ReverseX));
 	lcd.fillScr(black);
-	lcd.InitLCD(portrait, IS_24BIT, IS_ER);
+	lcd.setOrientation(portrait, IS_ER, true);
 	if (withTouch)
 	{
 		DisplayOrientation portraitTouch = static_cast<DisplayOrientation>(nvData.touchOrientation ^ (SwapXY | ReverseX));
