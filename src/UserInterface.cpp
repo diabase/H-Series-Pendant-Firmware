@@ -1346,7 +1346,7 @@ void CreatePendantOffsetTabFields(const ColourScheme& colours) {
 	AddIconButton(row4P, 0, 4, Xmin2max, evProbeWorkpiece, "Xmin", DisplayXP);
 	AddIconButton(row4P, 2, 4, Xmax2min, evProbeWorkpiece, "Xmax", DisplayXP);
 	AddIconButton(row5P, 1, 4, Ymin2max, evProbeWorkpiece, "Ymin", DisplayXP);
-	AddIconButton(row5P, 3, 4, Zmax2min, evProbeWorkpiece, "Zmax", DisplayXP);
+	AddIconButton(row5P, 3, 4, Zmax2min, evProbeWorkpiece, "Zmin", DisplayXP);
 
 	AddTextButton(row8P, 0, 2, "X-Y", evTouchoff, "X-Y", DisplayXP);
 	AddTextButton(row8P, 1, 2, "Z", evTouchoff, "Z", DisplayXP);
@@ -1757,6 +1757,7 @@ namespace UI
 			UpdateField(standbyTempP, 0);
 		}
 		currentToolField->SetValue(currentTool);
+		pSpindleRPMButton->SetValue(0);
 	}
 
 	static int timesLeft[3];
@@ -2699,7 +2700,7 @@ namespace UI
 								SerialIo::SendString("M5\n");
 							} else {
 								String<MaxEncoderCommandLength> cmd;
-								cmd.printf("M%d S%d\n", val > 0 ? 3 : 4, val);
+								cmd.printf("M%d P%d S%d\n", currentTool, val > 0 ? 3 : 4, val);
 								SerialIo::SendString(cmd.c_str());
 							}
 						}
