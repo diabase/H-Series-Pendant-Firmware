@@ -2700,7 +2700,8 @@ namespace UI
 								SerialIo::SendString("M5\n");
 							} else {
 								String<MaxEncoderCommandLength> cmd;
-								cmd.printf("M%d P%d S%d\n", currentTool, val > 0 ? 3 : 4, val);
+								const uint8_t direction = val > 0 ? 3 : 4;
+								cmd.printf("M%d P%d S%d\n", direction, currentTool, val);
 								SerialIo::SendString(cmd.c_str());
 							}
 						}
