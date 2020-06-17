@@ -1278,7 +1278,7 @@ void UTFT::InitLCD(DisplayOrientation po, bool is24bit, bool isER)
 		setOrientation(orient, isER);
 
 		LCD_Write_COM(0xF0);		//pixel data interface
-		LCD_Write_DATA8(0x03);
+		LCD_Write_DATA8(0x03);		//0x03: 16-bit (565 format), 0x02: 16-bit packed
 
 		delay_ms(1);
 

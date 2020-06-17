@@ -205,7 +205,7 @@ const StringTable LanguageTables[NumLanguages] =
 		// Pendant Offset tab
 		"Probe Workpiece",
 		"Touch-off Plate",
-		"Tool Offset",
+		"Set Tool Offset",
 
 		// Pendant Job tab
 		"No job running",
@@ -483,7 +483,7 @@ const StringTable LanguageTables[NumLanguages] =
 		// Pendant Offset tab
 		"Probe Workpiece",
 		"Touch-off Plate",
-		"Tool Offset",
+		"Set Tool Offset",
 
 		// Pendant Job tab
 		"No job running",
@@ -622,7 +622,7 @@ const StringTable LanguageTables[NumLanguages] =
 		// Pendant Offset tab
 		"Probe Workpiece",
 		"Touch-off Plate",
-		"Tool Offset",
+		"Set Tool Offset",
 
 		// Pendant Job tab
 		"No job running",
