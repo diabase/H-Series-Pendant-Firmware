@@ -85,6 +85,7 @@ struct StringTable
 
 	// Pendant Offset page
 	CSTRING probeWorkpiece;
+	CSTRING findCenterOfCavity;
 	CSTRING touchOff;
 	CSTRING toolOffset;
 
@@ -204,6 +205,7 @@ const StringTable LanguageTables[NumLanguages] =
 
 		// Pendant Offset tab
 		"Probe Workpiece",
+		"Find Center of Cavity",
 		"Touch-off Plate",
 		"Set Tool Offset",
 
@@ -343,6 +345,7 @@ const StringTable LanguageTables[NumLanguages] =
 
 		// Pendant Offset tab
 		"Werkstück finden",
+		"Hohlraummitte finden",
 		"Tastplatte",
 		"Werkzeug Offset",
 
@@ -482,6 +485,7 @@ const StringTable LanguageTables[NumLanguages] =
 
 		// Pendant Offset tab
 		"Probe Workpiece",
+		"Find Center of Cavity",
 		"Touch-off Plate",
 		"Set Tool Offset",
 
@@ -621,6 +625,7 @@ const StringTable LanguageTables[NumLanguages] =
 
 		// Pendant Offset tab
 		"Probe Workpiece",
+		"Find Center of Cavity",
 		"Touch-off Plate",
 		"Set Tool Offset",
 
@@ -760,6 +765,7 @@ const StringTable LanguageTables[NumLanguages] =
 
 		// Pendant Offset tab
 		"Probe Workpiece",
+		"Find Center of Cavity",
 		"Touch-off Plate",
 		"Tool Offset",
 

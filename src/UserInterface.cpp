@@ -55,18 +55,19 @@ struct FileListButtons
 	IntegerField *errorField;
 };
 
-static FileListButtons filesListButtons, macrosListButtons;
+static FileListButtons filesListButtons, macrosListButtons, macrosListButtonsP;
 static SingleButton *changeCardButton;
 
 static TextButton *filenameButtons[NumDisplayedFiles];
 static TextButton *macroButtons[NumDisplayedMacros];
+static TextButton *macroButtonsP[NumDisplayedMacrosP];
 static TextButton *controlPageMacroButtons[NumControlPageMacroButtons];
 static String<controlPageMacroTextLength> controlPageMacroText[NumControlPageMacroButtons];
 
 static PopupWindow *setTempPopup, *movePopup, *extrudePopup, *fileListPopup, *macrosPopup, *fileDetailPopup, *baudPopup,
 		*volumePopup, *infoTimeoutPopup, *areYouSurePopup, *keyboardPopup, *languagePopup, *coloursPopup;
 #ifdef SUPPORT_ENCODER
-static PopupWindow *setTempPopupEncoder;
+static PopupWindow *setTempPopupEncoder, *macrosPopupP;
 #endif
 static StaticTextField *areYouSureTextField, *areYouSureQueryField;
 static PopupWindow *areYouSurePopupP, *extrudePopupP;
@@ -713,11 +714,12 @@ void CreateExtrudePopupP(const ColourScheme& colours)
 
 
 // Create a popup used to list files pr macros
-PopupWindow *CreateFileListPopup(FileListButtons& controlButtons, TextButton ** array fileButtons, unsigned int numRows, unsigned int numCols, const ColourScheme& colours, bool filesNotMacros)
+PopupWindow *CreateFileListPopup(FileListButtons& controlButtons, TextButton ** array fileButtons, unsigned int numRows, unsigned int numCols, const ColourScheme& colours, bool filesNotMacros,
+		PixelNumber popupHeight = fileListPopupHeight, PixelNumber popupWidth = fileListPopupWidth)
 pre(fileButtons.lim == numRows * numCols)
 {
-	PopupWindow * const popup = new StandardPopupWindow(fileListPopupHeight, fileListPopupWidth, colours.popupBackColour, colours.popupBorderColour, colours.popupTextColour, colours.buttonImageBackColour, nullptr);
-	const PixelNumber closeButtonPos = fileListPopupWidth - closeButtonWidth - popupSideMargin;
+	PopupWindow * const popup = new StandardPopupWindow(popupHeight, popupWidth, colours.popupBackColour, colours.popupBorderColour, colours.popupTextColour, colours.buttonImageBackColour, nullptr);
+	const PixelNumber closeButtonPos = popupWidth - closeButtonWidth - popupSideMargin;
 	const PixelNumber navButtonWidth = (closeButtonPos - popupSideMargin)/7;
 	const PixelNumber upButtonPos = closeButtonPos - navButtonWidth - fieldSpacing;
 	const PixelNumber rightButtonPos = upButtonPos - navButtonWidth - fieldSpacing;
@@ -751,7 +753,7 @@ pre(fileButtons.lim == numRows * numCols)
 	popup->AddField(controlButtons.folderUpButton = new TextButton(popupTopMargin, upButtonPos, navButtonWidth, UP_ARROW, (filesNotMacros) ? evFilesUp : evMacrosUp));
 	controlButtons.folderUpButton->Show(false);
 
-	const PixelNumber fileFieldWidth = (fileListPopupWidth + fieldSpacing - (2 * popupSideMargin))/numCols;
+	const PixelNumber fileFieldWidth = (popupWidth + fieldSpacing - (2 * popupSideMargin))/numCols;
 	for (unsigned int c = 0; c < numCols; ++c)
 	{
 		PixelNumber row = popupTopMargin;
@@ -766,7 +768,7 @@ pre(fileButtons.lim == numRows * numCols)
 		}
 	}
 
-	controlButtons.errorField = new IntegerField(popupTopMargin + 2 * (buttonHeight + fileButtonRowSpacing), popupSideMargin, fileListPopupWidth - (2 * popupSideMargin),
+	controlButtons.errorField = new IntegerField(popupTopMargin + 2 * (buttonHeight + fileButtonRowSpacing), popupSideMargin, popupWidth - (2 * popupSideMargin),
 							TextAlignment::Centre, strings->error, strings->accessingSdCard);
 	controlButtons.errorField->Show(false);
 	popup->AddField(controlButtons.errorField);
@@ -1262,13 +1264,13 @@ void CreatePendantJogTabFields(const ColourScheme& colours) {
 	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonTextBackColour);
 
 	static const char * array jogAxes[]  = { "X", "Y", "Z", "A", "C" };
-	static const float jogAmountValues[] = { 0.01, 0.10, 1.00, 5.00 };
+	static const float jogAmountValues[] = { 0.01, 0.10, 1.00 /*, 5.00 */ };
 
 	// Axis selection
-	currentJogAxis = CreateStringButtonRowVertical(&mgr, jogBlock + rowHeightP, CalcXPos(axisCol, colWidth), 5 * buttonHeight + 4 * fieldSpacing, fieldSpacing, colWidth, 5, jogAxes, jogAxes, evPJogAxis, 0);
+	currentJogAxis = CreateStringButtonRowVertical(&mgr, jogBlock + rowHeightP, CalcXPos(axisCol, colWidth), ARRAY_SIZE(jogAxes) * buttonHeight + (ARRAY_SIZE(jogAxes) - 1) * fieldSpacing, fieldSpacing, colWidth, ARRAY_SIZE(jogAxes), jogAxes, jogAxes, evPJogAxis, 0);
 
 	// Distance per click
-	currentJogAmount = CreateFloatButtonRowVertical(&mgr, jogBlock + rowHeightP, CalcXPos(movementCol, colWidth), 4 * buttonHeight + 3 * fieldSpacing, fieldSpacing, colWidth, 4, "mm", 2, jogAmountValues, evPJogAmount, 2);
+	currentJogAmount = CreateFloatButtonRowVertical(&mgr, jogBlock + rowHeightP, CalcXPos(movementCol, colWidth), ARRAY_SIZE(jogAmountValues) * buttonHeight + (ARRAY_SIZE(jogAmountValues) - 1) * fieldSpacing, fieldSpacing, colWidth, ARRAY_SIZE(jogAmountValues), "mm", 2, jogAmountValues, evPJogAmount, 2);
 
 	// Axis position fields
 	DisplayField::SetDefaultColours(colours.infoTextColour, colours.infoBackColour);
@@ -1294,6 +1296,8 @@ void CreatePendantJogTabFields(const ColourScheme& colours) {
 	pHomeButtons[1] = AddIconButton(secondBlock + 3 * rowHeightP, homingCol, 3, IconHomeY,			evSendCommand,	"G28 Y0", DisplayXP);
 	pHomeButtons[2] = AddIconButton(secondBlock + 4 * rowHeightP, homingCol, 3, IconHomeZ,			evSendCommand,	"G28 Z0", DisplayXP);
 	measureZButton  = AddTextButton(secondBlock + 5 * rowHeightP, homingCol, 3, strings->measureZ,  evMeasureZ, 	"M98 P\"measureZ.g\"", DisplayXP);
+	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonTextBackColour);
+	                  AddTextButton(secondBlock + 6 * rowHeightP, homingCol, 3, strings->macro,     evListMacros,    nullptr, DisplayXP);
 
 	// Tool selection buttons
 	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonImageBackColour);
@@ -1338,8 +1342,8 @@ void CreatePendantOffsetTabFields(const ColourScheme& colours) {
 	const PixelNumber fullWidth = CalcWidth(1, DisplayXP);
 	const PixelNumber xPos = CalcXPos(0, fullWidth);
 	mgr.AddField(new StaticTextField(row2P, xPos, fullWidth, TextAlignment::Centre, strings->probeWorkpiece));
-	mgr.AddField(new StaticTextField(row7P, xPos, fullWidth, TextAlignment::Centre, strings->touchOff));
-	mgr.AddField(new StaticTextField(row10P, xPos, fullWidth, TextAlignment::Centre, strings->toolOffset));
+	mgr.AddField(new StaticTextField(row8P, xPos, fullWidth, TextAlignment::Centre, strings->touchOff));
+	mgr.AddField(new StaticTextField(row11P, xPos, fullWidth, TextAlignment::Centre, strings->toolOffset));
 
 	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonImageBackColour);
 	AddIconButton(row3P, 1, 4, Ymax2min, evProbeWorkpiece, "Ymin", DisplayXP);
@@ -1348,17 +1352,20 @@ void CreatePendantOffsetTabFields(const ColourScheme& colours) {
 	AddIconButton(row5P, 1, 4, Ymin2max, evProbeWorkpiece, "Ymax", DisplayXP);
 	AddIconButton(row5P, 3, 4, Zmax2min, evProbeWorkpiece, "Zmin", DisplayXP);
 
-	AddTextButton(row8P, 0, 2, "X-Y", evTouchoff, "X-Y", DisplayXP);
-	AddTextButton(row8P, 1, 2, "Z", evTouchoff, "Z", DisplayXP);
+	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonTextBackColour);
+	AddTextButton(row6P, 0, 1, strings->findCenterOfCavity, evFindCenterOfCavity, nullptr, DisplayXP);
+
+	AddTextButton(row9P, 0, 2, "X-Y", evTouchoff, "X-Y", DisplayXP);
+	AddTextButton(row9P, 1, 2, "Z", evTouchoff, "Z", DisplayXP);
 
 	DisplayField::SetDefaultColours(colours.infoTextColour, colours.infoBackColour);
 	const PixelNumber w = CalcWidth(3, DisplayXP);
-	mgr.AddField(currentToolField = new IntegerField(row11P, CalcXPos(0, w), w, TextAlignment::Centre));
+	mgr.AddField(currentToolField = new IntegerField(row12P, CalcXPos(0, w), w, TextAlignment::Centre));
 	currentToolField->SetValue(currentTool);
 
-	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonTextBackColour);
-	AddTextButton(row11P, 1, 3, "X-Y", evSetToolOffset, 0, DisplayXP);
-	AddTextButton(row11P, 2, 3, "Z", evSetToolOffset, 1, DisplayXP);
+	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonImageBackColour);
+	AddIconButton(row12P, 1, 3, SetToolOffsetXY, evSetToolOffset, 0, DisplayXP);
+	AddIconButton(row12P, 2, 3, SetToolOffsetZ, evSetToolOffset, 1, DisplayXP);
 
 	pendantOffsetRoot = mgr.GetRoot();
 }
@@ -1485,6 +1492,7 @@ void CreatePendantRoot(const ColourScheme& colours)
 	// Pop-ups
 	CreateAreYouSurePopupPortrait(colours);
 	CreateExtrudePopupP(colours);
+	macrosPopupP = CreateFileListPopup(macrosListButtonsP, macroButtonsP, NumMacroRowsP, NumMacroColumnsP, colours, false, MacroListPopupHeightP, MacroListPopupWidthP);
 	alertPopupP = new AlertPopupP(colours);
 
 	LandscapeDisplay(false);
@@ -2551,6 +2559,12 @@ namespace UI
 				break;
 			}
 
+			case evFindCenterOfCavity:
+			{
+				SerialIo::SendString("M98 P\"tcalibrate.g\"\n");
+				break;
+			}
+
 			case evTouchoff:
 			{
 				SerialIo::SendString("M98 P\"touchoff_");
@@ -2561,7 +2575,8 @@ namespace UI
 
 			case evSetToolOffset:
 			{
-				if (currentTool < 0)
+				// No tool or probe
+				if (currentTool < 0 || currentTool == 10)
 				{
 					break;
 				}
@@ -2991,7 +3006,7 @@ namespace UI
 				break;
 
 			case evScrollMacros:
-				FileManager::ScrollMacros(bp.GetIParam() * NumMacroRows);
+				FileManager::ScrollMacros(bp.GetIParam() * (isLandscape ? NumMacroRows : NumMacroRowsP));
 				ShortenTouchDelay();
 				break;
 
@@ -3334,7 +3349,14 @@ namespace UI
 			filePopupTitleField->SetValue(cardNumber);
 			changeCardButton->Show(numVolumes > 1);
 		}
-		mgr.SetPopup((filesNotMacros) ? fileListPopup : macrosPopup, AutoPlace, AutoPlace);
+		if (isLandscape)
+		{
+			mgr.SetPopup((filesNotMacros) ? fileListPopup : macrosPopup, AutoPlace, AutoPlace);
+		}
+		else
+		{
+			mgr.SetPopupP((filesNotMacros) ? fileListPopup : macrosPopupP, AutoPlace, AutoPlace);
+		}
 	}
 
 	void FileListLoaded(bool filesNotMacros, int errCode)
@@ -3343,11 +3365,16 @@ namespace UI
 		if (errCode == 0)
 		{
 			mgr.Show(buttons.errorField, false);
+			// Portrait mode
+			mgr.Show(macrosListButtonsP.errorField, false);
 		}
 		else
 		{
 			buttons.errorField->SetValue(errCode);
 			mgr.Show(buttons.errorField, true);
+			// Portrait mode
+			macrosListButtonsP.errorField->SetValue(errCode);
+			mgr.Show(macrosListButtonsP.errorField, true);
 		}
 	}
 
@@ -3357,15 +3384,32 @@ namespace UI
 		mgr.Show(buttons.scrollLeftButton, scrollEarlier);
 		mgr.Show(buttons.scrollRightButton, scrollLater);
 		mgr.Show(buttons.folderUpButton, parentDir);
+
+		// Portrait mode
+		mgr.Show(macrosListButtonsP.scrollLeftButton, scrollEarlier);
+		mgr.Show(macrosListButtonsP.scrollRightButton, scrollLater);
+		mgr.Show(macrosListButtonsP.folderUpButton, parentDir);
 	}
 
 	// Update the specified button in the file or macro buttons list. If 'text' is nullptr then hide the button, else display it.
 	void UpdateFileButton(bool filesNotMacros, unsigned int buttonIndex, const char * array null text, const char * array null param)
 	{
-		TextButton * const f = ((filesNotMacros) ? filenameButtons : macroButtons)[buttonIndex];
-		f->SetText(text);
-		f->SetEvent((text == nullptr) ? evNull : (filesNotMacros) ? evFile : evMacro, param);
-		mgr.Show(f, text != nullptr);
+		if (buttonIndex < ((filesNotMacros) ? NumDisplayedFiles : NumDisplayedMacros))
+		{
+			TextButton * const f = ((filesNotMacros) ? filenameButtons : macroButtons)[buttonIndex];
+			f->SetText(text);
+			f->SetEvent((text == nullptr) ? evNull : (filesNotMacros) ? evFile : evMacro, param);
+			mgr.Show(f, text != nullptr);
+		}
+
+		// Portrait mode
+		if (buttonIndex < NumDisplayedMacrosP)
+		{
+			TextButton * const fp = macroButtonsP[buttonIndex];
+			fp->SetText(text);
+			fp->SetEvent((text == nullptr) ? evNull : evMacro, param);
+			mgr.Show(fp, text != nullptr);
+		}
 	}
 
 	// Update the specified button in the macro short list. If 'fileName' is nullptr then hide the button, else display it.
@@ -3393,7 +3437,13 @@ namespace UI
 
 	unsigned int GetNumScrolledFiles(bool filesNotMacros)
 	{
-		return (filesNotMacros) ? NumFileRows : NumMacroRows;
+		if (isLandscape)
+		{
+			return (filesNotMacros) ? NumFileRows : NumMacroRows;
+		}
+		else {
+			return NumMacroRowsP;
+		}
 	}
 
 	void AdjustControlPageMacroButtons()

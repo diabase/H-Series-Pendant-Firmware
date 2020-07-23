@@ -29,4 +29,6 @@ extern const uint8_t IconBackspace[], IconUp[], IconDown[], IconEnter[];
 
 extern const uint8_t Xmax2min[], Xmin2max[], Ymax2min[], Ymin2max[], Zmax2min[];
 
+extern const uint8_t SetToolOffsetXY[], SetToolOffsetZ[];
+
 #endif /* ICONS_H_ */

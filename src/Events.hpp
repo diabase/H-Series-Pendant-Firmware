@@ -28,7 +28,7 @@ enum Event : uint8_t
 	// Pendant tool selection
 	evToolSelect,
 
-	evMeasureZ, evProbeWorkpiece, evTouchoff, evSetToolOffset,
+	evMeasureZ, evProbeWorkpiece, evTouchoff, evSetToolOffset, evFindCenterOfCavity,
 
 	// Heater control
 	evSelectHead, evAdjustActiveTemp, evAdjustStandbyTemp,
