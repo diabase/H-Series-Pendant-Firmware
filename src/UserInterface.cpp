@@ -1344,6 +1344,7 @@ void CreatePendantOffsetTabFields(const ColourScheme& colours) {
 	mgr.AddField(new StaticTextField(row2P, xPos, fullWidth, TextAlignment::Centre, strings->probeWorkpiece));
 	mgr.AddField(new StaticTextField(row8P, xPos, fullWidth, TextAlignment::Centre, strings->touchOff));
 	mgr.AddField(new StaticTextField(row11P, xPos, fullWidth, TextAlignment::Centre, strings->toolOffset));
+	mgr.AddField(new StaticTextField(row14P, xPos, fullWidth, TextAlignment::Centre, strings->zeroWorkpiece));
 
 	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonImageBackColour);
 	AddIconButton(row3P, 1, 4, Ymax2min, evProbeWorkpiece, "Ymin", DisplayXP);
@@ -1366,6 +1367,13 @@ void CreatePendantOffsetTabFields(const ColourScheme& colours) {
 	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonImageBackColour);
 	AddIconButton(row12P, 1, 3, SetToolOffsetXY, evSetToolOffset, 0, DisplayXP);
 	AddIconButton(row12P, 2, 3, SetToolOffsetZ, evSetToolOffset, 1, DisplayXP);
+
+	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonTextBackColour);
+	AddTextButton(row15P, 0, 5, "X", evZeroAxisInWCS, "X", DisplayXP);
+	AddTextButton(row15P, 1, 5, "Y", evZeroAxisInWCS, "Y", DisplayXP);
+	AddTextButton(row15P, 2, 5, "Z", evZeroAxisInWCS, "Z", DisplayXP);
+	AddTextButton(row15P, 3, 5, "A", evZeroAxisInWCS, "A", DisplayXP);
+	AddTextButton(row15P, 4, 5, "C", evZeroAxisInWCS, "C", DisplayXP);
 
 	pendantOffsetRoot = mgr.GetRoot();
 }
@@ -2586,6 +2594,13 @@ namespace UI
 							? "X{move.axes[0].userPosition} Y{move.axes[1].userPosition}"
 							: "Z{move.axes[2].userPosition}");
 				SerialIo::SendString(cmd.c_str());
+				break;
+			}
+
+			case evZeroAxisInWCS:
+			{
+				String<120> cmd;
+				cmd.printf("G10 L20 P{move.workspaceNumber} %s\n", bp.GetSParam());
 				break;
 			}
 
