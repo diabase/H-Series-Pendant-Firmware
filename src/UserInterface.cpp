@@ -693,10 +693,10 @@ void PopupAreYouSure(Event ev, const char* text, const char* query = strings->ar
 	eventToConfirm = ev;
 	if (isLandscape)
 	{
-	areYouSureTextField->SetValue(text);
-	areYouSureQueryField->SetValue(query);
-	mgr.SetPopup(areYouSurePopup, AutoPlace, AutoPlace);
-}
+		areYouSureTextField->SetValue(text);
+		areYouSureQueryField->SetValue(query);
+		mgr.SetPopup(areYouSurePopup, AutoPlace, AutoPlace);
+	}
 	else {
 		areYouSureTextFieldP->SetValue(text);
 		areYouSureQueryFieldP->SetValue(query);
@@ -1221,13 +1221,13 @@ void CreatePrintingTabFields(const ColourScheme& colours)
 
 	// Labels
 	DisplayField::SetDefaultColours(colours.labelTextColour, colours.defaultBackColour);
-	mgr.AddField(new StaticTextField(row6 + labelRowAdjust, margin, bedColumn - fieldSpacing, TextAlignment::Right, strings->extruderPercent));
+	mgr.AddField(new StaticTextField(row6 + labelRowAdjust, margin, bedColumn - fieldSpacing - margin, TextAlignment::Right, strings->extruderPercent));
 
 	// Extrusion factor buttons
 	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonTextBackColour);
-	for (unsigned int i = 0; i < MaxExtruders; ++i)
+	for (unsigned int i = 0; i < MaxHeaters; ++i)
 	{
-		const PixelNumber column = ((tempButtonWidth + fieldSpacing) * (i + 1)) + bedColumn;
+		const PixelNumber column = ((tempButtonWidth + fieldSpacing) * i) + bedColumn;
 
 		IntegerButton * const ib = new IntegerButton(row6, column, tempButtonWidth);
 		ib->SetValue(100);
@@ -3987,7 +3987,10 @@ namespace UI
 				mgr.Show(extrusionFactors[slot], hasHeater);
 
 				// Set tool number for change event
-				activeTemps[slot]->SetEvent(evAdjustActiveTemp, tool->index);
+				const event_t evForActive = hasHeater ? evAdjustActiveTemp : hasSpindle ? evAdjustActiveRPM : evNull;
+				const int evActiveParam = hasSpindle ? tool->spindle->index : tool->index;
+
+				activeTemps[slot]->SetEvent(evForActive, evActiveParam);
 				standbyTemps[slot]->SetEvent(standbyTemps[slot]->GetEvent(), tool->index);
 				++slot;
 			}

@@ -127,8 +127,6 @@ extern uint8_t glcd28x32[];				// declare which fonts we will be using
 
 #endif
 
-const unsigned int MaxExtruders = MaxHeaters - 1;
-
 const PixelNumber buttonHeight = rowTextHeight + 4;
 const PixelNumber tempButtonWidth = (DISPLAY_X + fieldSpacing - bedColumn)/MaxHeaters - fieldSpacing;
 
