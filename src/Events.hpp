@@ -31,13 +31,17 @@ enum Event : uint8_t
 	evMeasureZ, evProbeWorkpiece, evTouchoff, evSetToolOffset, evFindCenterOfCavity, evZeroAxisInWCS,
 
 	// Heater control
-	evSelectHead, evAdjustActiveTemp, evAdjustStandbyTemp,
+	evSelectHead, evSelectBed, evSelectChamber, evAdjustActiveTemp, evAdjustStandbyTemp,
+
+	// Spindle control
+	evAdjustActiveRPM,
 
 	// Control functions
 	evMovePopup, evExtrudePopup, evFan, evListMacros,
 	evMoveX, evMoveY, evMoveZ, evMoveU, evMoveV, evMoveW,	// these 6 must be contiguous and in this order
 	evExtrudeAmount, evExtrudeRate, evExtrude, evRetract,
-	evExtrudeAmountP, evExtrudeRateP, evExtrudeP, evRetractP,
+	evExtrudeAmountP, evExtrudeRateP,
+	evHomeAxis,
 
 	// Print functions
 	evExtrusionFactor,
@@ -52,7 +56,6 @@ enum Event : uint8_t
 	evFactoryReset,
 	evAdjustSpeed,
 	evPAdjustExtrusionPercent, // TODO: remove as soon as we have extruder number
-	evPAdjustSpindleRPM,
 
 	evScrollFiles, evScrollMacros, evFilesUp, evMacrosUp, evChangeCard,
 

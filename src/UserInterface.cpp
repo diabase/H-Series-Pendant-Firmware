@@ -23,14 +23,6 @@
 #include "Strings.hpp"
 #include "Version.hpp"
 
-static const char* array const axisNames[] = { "X", "Y", "Z", "U", "V", "W", "A", "B", "C" };
-
-#if DISPLAY_X == 800
-const Icon heaterIcons[MaxHeaters] = { IconBed, IconNozzle1, IconNozzle2, IconNozzle3, IconNozzle4, IconNozzle5, IconNozzle6 };
-#else
-const Icon heaterIcons[MaxHeaters] = { IconBed, IconNozzle1, IconNozzle2, IconNozzle3, IconNozzle4 };
-#endif
-
 // Public fields
 TextField *fwVersionField, *userCommandField;
 IntegerField *freeMem;
@@ -64,7 +56,7 @@ static TextButton *macroButtonsP[NumDisplayedMacrosP];
 static TextButton *controlPageMacroButtons[NumControlPageMacroButtons];
 static String<controlPageMacroTextLength> controlPageMacroText[NumControlPageMacroButtons];
 
-static PopupWindow *setTempPopup, *movePopup, *extrudePopup, *fileListPopup, *macrosPopup, *fileDetailPopup, *baudPopup,
+static PopupWindow *setTempPopup, *setRPMPopup, *movePopup, *extrudePopup, *fileListPopup, *macrosPopup, *fileDetailPopup, *baudPopup,
 		*volumePopup, *infoTimeoutPopup, *areYouSurePopup, *keyboardPopup, *languagePopup, *coloursPopup;
 #ifdef SUPPORT_ENCODER
 static PopupWindow *setTempPopupEncoder, *macrosPopupP;
@@ -74,16 +66,17 @@ static PopupWindow *areYouSurePopupP, *extrudePopupP;
 static StaticTextField *areYouSureTextFieldP, *areYouSureQueryFieldP;
 static DisplayField *baseRoot, *commonRoot, *controlRoot, *printRoot, *messageRoot, *setupRoot,
 		*pendantBaseRoot, *pendantJogRoot, *pendantOffsetRoot, *pendantJobRoot;
-static SingleButton *homeButtons[MaxAxes], *toolButtons[MaxHeaters], *homeAllButton, *bedCompButton;
-static SingleButton *pHomeAllButton, *pHomeButtons[MaxAxes], *measureZButton;
-static FloatField *controlTabAxisPos[MaxAxes];
-static FloatField *printTabAxisPos[MaxAxes], *jobTabAxisPos[MaxAxesPendant];
-static FloatField *movePopupAxisPos[MaxAxes];
-static FloatField *jogTabAxisPos[MaxAxesPendant];
-static ButtonBase *toolSelectButtons[11];
+static SingleButton *homeAllButton, *bedCompButton;
+static IconButtonWithText *homeButtons[MaxDisplayableAxes], *toolButtons[MaxHeaters];
+static SingleButton *pHomeAllButton, *pHomeButtons[MaxTotalAxes], *measureZButton;
+static FloatField *controlTabAxisPos[MaxDisplayableAxes];
+static FloatField *printTabAxisPos[MaxDisplayableAxes];
+static FloatField *movePopupAxisPos[MaxDisplayableAxes];
+static FloatField *jogTabAxisPos[MaxDisplayableAxesP], *jobTabAxisPos[MaxDisplayableAxesP];
+static IconButtonWithText *toolSelectButtons[MaxPendantTools], *toolButtonsPJob[MaxPendantTools];
 static FloatField *currentTemps[MaxHeaters];
-static FloatField *currentTempsPJob[MaxHeaters];
-static FloatField *currentTempP;
+static FloatField *currentTempPJog;
+static FloatField *currentTempsPJob[MaxPendantTools];
 static FloatField *fpHeightField, *fpLayerHeightField, *babystepOffsetField;
 static IntegerField *fpSizeField, *fpFilamentField, *filePopupTitleField;
 static ProgressBar *printProgressBar, *printProgressBarP;
@@ -94,14 +87,14 @@ static IntegerButton *pFeedrateButton, *pExtruderPercentButton, *pSpindleRPMButt
 static ButtonBase *filesButton, *pauseButton, *resumeButton, *resetButton, *babystepButton;
 static TextField *timeLeftField, *zProbe;
 static TextField *fpNameField, *fpGeneratedByField, *fpLastModifiedField, *fpPrintTimeField;
-static StaticTextField *moveAxisRows[MaxAxes];
+static StaticTextField *moveAxisRows[MaxDisplayableAxes];
 static StaticTextField *nameField, *statusField;
 static StaticTextField *pNameField, *pStatusField;
 static IntegerButton *activeTemps[MaxHeaters], *standbyTemps[MaxHeaters];
-static IntegerButton *activeTempsPJob[MaxHeaters], *standbyTempsPJob[MaxHeaters];
-static IntegerButton *activeTempP, *standbyTempP;
+static IntegerButton *activeTempPJog, *standbyTempPJog;
+static IntegerButton *activeTempsPJob[MaxPendantTools], *standbyTempsPJob[MaxPendantTools];
 static IntegerField *currentToolField;
-static IntegerButton *spd, *extrusionFactors[MaxExtruders], *fanSpeed, *baudRateButton, *volumeButton, *infoTimeoutButton;
+static IntegerButton *spd, *extrusionFactors[MaxHeaters], *fanSpeed, *baudRateButton, *volumeButton, *infoTimeoutButton;
 static TextButton *languageButton, *coloursButton, *dimmingTypeButton;
 static SingleButton *moveButton, *extrudeButton, *macroButton;
 static PopupWindow *babystepPopup;
@@ -130,15 +123,13 @@ const size_t numUserCommandBuffers = 6;					// number of command history buffers
 static String<maxUserCommandLength> userCommandBuffers[numUserCommandBuffers];
 static size_t currentUserCommandBuffer = 0, currentHistoryBuffer = 0;
 
-static unsigned int numTools = 0;
-static unsigned int numHeaters = 0;
+static unsigned int numToolColsUsed = 0;
 static unsigned int numHeaterAndToolColumns = 0;
 static int oldIntValue;
-int heaterStatus[MaxHeaters];
-int currentTool = -1;
-
+HeaterStatus heaterStatus[MaxHeaters];
 static Event eventToConfirm = evNull;
-static unsigned int numAxes = 0;						// initialise to 0 so we refresh the macros list when we receive the number of axes
+static uint8_t numVisibleAxes = 0;						// initialise to 0 so we refresh the macros list when we receive the number of axes
+static uint8_t numDisplayedAxes = 0;
 static bool isDelta = false;
 
 const char* array null currentFile = nullptr;			// file whose info is displayed in the file info popup
@@ -152,6 +143,106 @@ uint32_t infoTimeout = DefaultInfoTimeout;				// info timeout in seconds, 0 mean
 uint32_t whenAlertReceived;
 bool displayingResponse = false;						// true if displaying a response
 
+class IndexedElement
+{
+public:
+	IndexedElement(uint8_t index) : index(index) { };
+protected:
+	uint8_t index;
+};
+
+class IndexedElementWithHeater : IndexedElement
+{
+public:
+	IndexedElementWithHeater(uint8_t index) : IndexedElement(index), heater(-1) {};
+	IndexedElementWithHeater(uint8_t index, int8_t heater) : IndexedElement(index), heater(heater) {};
+protected:
+	int8_t heater;
+};
+
+class Axis
+{
+public:
+	Axis(char axisLetter) : babystep(0.0f), letter{axisLetter, '\0'}, homed(false), visible(false), slot(MaxTotalAxes), slotP(MaxTotalAxes) {};
+
+	float GetBabystep() const { return babystep; }
+	void SetBabystep(const float babystep) { this->babystep = babystep; }
+
+	const char * GetLetter() const { return letter; }
+	bool IsLetter(char letter) const { return this->letter[0] == letter; }
+	void SetLetter(const char letter) { this->letter[0] = letter; }
+
+	bool IsHomed() const { return homed; }
+	void SetHomed(const bool homed) { this->homed = homed; }
+
+	bool IsVisible() const { return visible; }
+	void SetVisible(const bool visible) { this->visible = visible; }
+
+	size_t GetSlot() const { return slot; }
+	void SetSlot(const size_t slot) { this->slot = min(slot, MaxTotalAxes); }
+
+	size_t GetSlotP() const { return slotP; }
+	void SetSlotP(const size_t slotP) { this->slotP = min(slotP, MaxTotalAxes); }
+private:
+	float babystep;
+	char letter[2];
+	uint16_t homed : 1,
+		visible : 1,
+		slot : 6,
+		slotP : 6;
+};
+
+static Axis axes[] = {
+	Axis('X'),
+	Axis('Y'),
+	Axis('Z'),
+	Axis('U'),
+	Axis('V'),
+	Axis('W'),
+	Axis('A'),
+	Axis('B'),
+	Axis('C'),
+	Axis('D'),
+};
+
+static bool allAxesHomed = false;
+
+struct Spindle {
+	// Index within configured spindles
+	uint8_t index = 0;
+	float active = 0.0;
+	float max = 0.0;
+	int8_t tool = -1;
+	Spindle* next = nullptr;
+};
+
+static Spindle* spindles;
+
+struct Tool {
+	// tool number
+	uint8_t index = 0;
+	int8_t heater = -1;				// only look at the first heater as we only display one
+	int8_t extruder = -1;			// only look at the first extruder as we only display one
+	Spindle* spindle = nullptr;		// only look at the first spindle as we only display one
+	ToolStatus status = ToolStatus::off;
+	uint8_t slot;
+	uint8_t slotP;
+	Tool* next;
+};
+
+static Tool* tools;
+static int32_t currentTool = -1;
+
+static struct BedOrChamber {
+	// Index within configured heaters
+	uint8_t index = 0;
+	// Id of heater
+	int8_t heater = -1;
+	// Slot for display on panel
+	uint8_t slot = MaxHeaters;
+	uint8_t slotP = MaxPendantTools;
+} bedHeater, chamberHeater;
+
 #ifdef SUPPORT_ENCODER
 
 # include "Hardware/RotaryEncoder.hpp"
@@ -159,7 +250,7 @@ bool displayingResponse = false;						// true if displaying a response
 static RotaryEncoder *encoder;
 static uint32_t lastEncoderCommandSentAt = 0;
 static ButtonPress currentJogAxis, currentJogAmount;
-bool isLandscape = false;
+static bool isLandscape = false;
 
 #endif
 
@@ -405,6 +496,36 @@ IconButton *AddIconButton(PixelNumber row, unsigned int col, unsigned int numCol
 	return f;
 }
 
+// Add an icon button with a string parameter
+IconButtonWithText *AddIconButtonWithText(PixelNumber row, unsigned int col, unsigned int numCols, Icon icon, Event evt, const char * text, const char* param, PixelNumber displayWidth = DisplayX)
+{
+	PixelNumber width = CalcWidth(numCols, displayWidth);
+	PixelNumber xpos = CalcXPos(col, width);
+	IconButtonWithText *f = new IconButtonWithText(row - 2, xpos, width, icon, evt, text, param);
+	mgr.AddField(f);
+	return f;
+}
+
+// Add an icon button with an int parameter
+IconButtonWithText *AddIconButtonWithText(PixelNumber row, unsigned int col, unsigned int numCols, Icon icon, Event evt, int intVal, const int param, PixelNumber displayWidth = DisplayX)
+{
+	PixelNumber width = CalcWidth(numCols, displayWidth);
+	PixelNumber xpos = CalcXPos(col, width);
+	IconButtonWithText *f = new IconButtonWithText(row - 2, xpos, width, icon, evt, intVal, param);
+	mgr.AddField(f);
+	return f;
+}
+
+// Add an icon button with an int parameter
+IconButtonWithText *AddIconButtonWithText(PixelNumber row, unsigned int col, unsigned int numCols, Icon icon, Event evt, const char * text, const int param, PixelNumber displayWidth = DisplayX)
+{
+	PixelNumber width = CalcWidth(numCols, displayWidth);
+	PixelNumber xpos = CalcXPos(col, width);
+	IconButtonWithText *f = new IconButtonWithText(row - 2, xpos, width, icon, evt, text, param);
+	mgr.AddField(f);
+	return f;
+}
+
 // Create a row of text buttons.
 // Optionally, set one to 'pressed' and return that one.
 // Set the colours before calling this
@@ -561,7 +682,7 @@ void ChangeDisplayDimmerType()
 // Don't update it if the value hasn't changed, because that makes the display flicker unnecessarily
 void UpdateField(IntegerButton *f, int val)
 {
-	if (f != fieldBeingAdjusted.GetButton() && f->GetValue() != val)
+	if (f != fieldBeingAdjusted.GetButton())
 	{
 		f->SetValue(val);
 	}
@@ -591,6 +712,14 @@ void CreateIntegerAdjustPopup(const ColourScheme& colours)
 	setTempPopup = CreateIntPopupBar(colours, tempPopupBarWidth, 5, tempPopupText, tempPopupParams, evAdjustInt, evSetInt);
 }
 
+void CreateIntegerRPMAdjustPopup(const ColourScheme& colours)
+{
+	// Create the popup window used to adjust temperatures, fan speed, extrusion factor etc.
+	static const char* const rpmPopupText[] = {"-1000", "-100", "-10", strings->set, "+10", "+100", "+1000"};
+	static const int rpmPopupParams[] = { -1000, -100, -10, 0, 10, 100, 1000 };
+	setRPMPopup = CreateIntPopupBar(colours, rpmPopupBarWidth, 7, rpmPopupText, rpmPopupParams, evAdjustInt, evSetInt);
+}
+
 #ifdef SUPPORT_ENCODER
 void CreateIntegerAdjustWithEncoderPopup(const ColourScheme& colours)
 {
@@ -609,13 +738,13 @@ void CreateMovePopup(const ColourScheme& colours)
 
 	movePopup = new StandardPopupWindow(movePopupHeight, movePopupWidth, colours.popupBackColour, colours.popupBorderColour, colours.popupTextColour, colours.buttonImageBackColour, strings->moveHead);
 	PixelNumber ypos = popupTopMargin + buttonHeight + moveButtonRowSpacing;
-	const PixelNumber axisPosYpos = ypos + (MaxAxes - 1) * (buttonHeight + moveButtonRowSpacing);
+	const PixelNumber axisPosYpos = ypos + (MaxDisplayableAxes - 1) * (buttonHeight + moveButtonRowSpacing);
 	const PixelNumber xpos = popupSideMargin + axisLabelWidth;
 	Event e = evMoveX;
-	PixelNumber column = margin;
-	PixelNumber xyFieldWidth = (DISPLAY_X - (2 * margin) - (MaxAxes * fieldSpacing))/(MaxAxes + 1);
+	PixelNumber column = popupSideMargin + margin;
+	PixelNumber xyFieldWidth = (DISPLAY_X - (2 * margin) - (MaxDisplayableAxes * fieldSpacing))/(MaxDisplayableAxes + 1);
 
-	for (size_t i = 0; i < MaxAxes; ++i)
+	for (size_t i = 0; i < MaxDisplayableAxes; ++i)
 	{
 		DisplayField::SetDefaultColours(colours.popupButtonTextColour, colours.popupButtonBackColour);
 		const char * array const * array values = (axisNames[i][0] == 'Z') ? zJogValues : xyJogValues;
@@ -685,10 +814,10 @@ void CreateExtrudePopupP(const ColourScheme& colours)
 			extrudePopupP,
 			ypos,
 			CalcXPos(0, colWidth, popupSideMargin),
-			6 * buttonHeight + 5 * fieldSpacing,
+			ARRAY_SIZE(extrudeAmountValues) * buttonHeight + (ARRAY_SIZE(extrudeAmountValues) - 1) * fieldSpacing,
 			fieldSpacing,
 			colWidth,
-			6,
+			ARRAY_SIZE(extrudeAmountValues),
 			extrudeAmountValues,
 			extrudeAmountValues,
 			evExtrudeAmountP,
@@ -698,10 +827,10 @@ void CreateExtrudePopupP(const ColourScheme& colours)
 			extrudePopupP,
 			ypos,
 			CalcXPos(1, colWidth, popupSideMargin),
-			6 * buttonHeight + 5 * fieldSpacing,
+			ARRAY_SIZE(extrudeSpeedValues) * buttonHeight + (ARRAY_SIZE(extrudeSpeedValues) - 1) * fieldSpacing,
 			fieldSpacing,
 			colWidth,
-			6,
+			ARRAY_SIZE(extrudeSpeedValues),
 			extrudeSpeedValues,
 			extrudeSpeedParams,
 			evExtrudeRateP,
@@ -995,7 +1124,7 @@ void CreateTemperatureGrid(const ColourScheme& colours)
 
 		// Add the icon button
 		DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonImageBackColour);
-		SingleButton * const b = new IconButton(row2, column, tempButtonWidth, heaterIcons[i], evSelectHead, i);
+		IconButtonWithText * const b = new IconButtonWithText(row2, column, tempButtonWidth, i == 0 ? IconBed : IconNozzle, evSelectHead, i, i);
 		b->Show(false);
 		toolButtons[i] = b;
 		mgr.AddField(b);
@@ -1034,8 +1163,8 @@ void CreateControlTabFields(const ColourScheme& colours)
 
 	DisplayField::SetDefaultColours(colours.infoTextColour, colours.infoBackColour);
 	PixelNumber column = margin;
-	PixelNumber xyFieldWidth = (DISPLAY_X - (2 * margin) - (MaxAxes * fieldSpacing))/(MaxAxes + 1);
-	for (size_t i = 0; i < MaxAxes; ++i)
+	PixelNumber xyFieldWidth = (DISPLAY_X - (2 * margin) - (MaxDisplayableAxes * fieldSpacing))/(MaxDisplayableAxes + 1);
+	for (size_t i = 0; i < MaxDisplayableAxes; ++i)
 	{
 		FloatField * const f = new FloatField(row6p3 + labelRowAdjust, column, xyFieldWidth, TextAlignment::Left, (i == 2) ? 2 : 1, axisNames[i]);
 		controlTabAxisPos[i] = f;
@@ -1048,24 +1177,24 @@ void CreateControlTabFields(const ColourScheme& colours)
 	mgr.AddField(zProbe = new TextField(row6p3 + labelRowAdjust, column, DISPLAY_X - column - margin, TextAlignment::Left, "P", zprobeBuf.c_str()));
 
 	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.notHomedButtonBackColour);
-	homeAllButton = AddIconButton(row7p7, 0, MaxAxes + 2, IconHomeAll, evSendCommand, "G28");
-	homeButtons[0] = AddIconButton(row7p7, 1, MaxAxes + 2, IconHomeX, evSendCommand, "G28 X0");
-	homeButtons[1] = AddIconButton(row7p7, 2, MaxAxes + 2, IconHomeY, evSendCommand, "G28 Y0");
-	homeButtons[2] = AddIconButton(row7p7, 3, MaxAxes + 2, IconHomeZ, evSendCommand, "G28 Z0");
-#if MaxAxes > 3
-	homeButtons[3] = AddIconButton(row7p7, 4, MaxAxes + 2, IconHomeU, evSendCommand, "G28 U0");
+	homeAllButton = AddIconButton(row7p7, 0, MaxDisplayableAxes + 2, IconHomeAll, evSendCommand, "G28");
+	homeButtons[0] = AddIconButtonWithText(row7p7, 1, MaxDisplayableAxes + 2, IconHomeAll, evHomeAxis, axisNames[0], axisNames[0]);
+	homeButtons[1] = AddIconButtonWithText(row7p7, 2, MaxDisplayableAxes + 2, IconHomeAll, evHomeAxis, axisNames[1], axisNames[1]);
+	homeButtons[2] = AddIconButtonWithText(row7p7, 3, MaxDisplayableAxes + 2, IconHomeAll, evHomeAxis, axisNames[2], axisNames[2]);
+#if MaxDisplayableAxes > 3
+	homeButtons[3] = AddIconButtonWithText(row7p7, 4, MaxDisplayableAxes + 2, IconHomeAll, evHomeAxis, axisNames[3], axisNames[3]);
 	homeButtons[3]->Show(false);
 #endif
-#if MaxAxes > 4
-	homeButtons[4] = AddIconButton(row7p7, 5, MaxAxes + 2, IconHomeV, evSendCommand, "G28 V0");
+#if MaxDisplayableAxes > 4
+	homeButtons[4] = AddIconButtonWithText(row7p7, 5, MaxDisplayableAxes + 2, IconHomeAll, evHomeAxis, axisNames[4], axisNames[4]);
 	homeButtons[4]->Show(false);
 #endif
-#if MaxAxes > 5
-	homeButtons[5] = AddIconButton(row7p7, 6, MaxAxes + 2, IconHomeW, evSendCommand, "G28 W0");
+#if MaxDisplayableAxes > 5
+	homeButtons[5] = AddIconButtonWithText(row7p7, 6, MaxDisplayableAxes + 2, IconHomeAll, evHomeAxis, axisNames[5], axisNames[5]);
 	homeButtons[5]->Show(false);
 #endif
 	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonImageBackColour);
-	bedCompButton = AddIconButton(row7p7, MaxAxes + 1, MaxAxes + 2, IconBedComp, evSendCommand, "G32");
+	bedCompButton = AddIconButton(row7p7, MaxDisplayableAxes + 1, MaxDisplayableAxes + 2, IconBedComp, evSendCommand, "G32");
 
 	filesButton = AddIconButton(row8p7, 0, 4, IconFiles, evListFiles, nullptr);
 	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonTextBackColour);
@@ -1139,8 +1268,8 @@ void CreatePrintingTabFields(const ColourScheme& colours)
 	const PixelNumber offset = rowHeight - 20;
 	DisplayField::SetDefaultColours(colours.infoTextColour, colours.infoBackColour);
 	PixelNumber column = margin;
-	PixelNumber xyFieldWidth = (DISPLAY_X - (2 * margin) - (MaxAxes * fieldSpacing))/(MaxAxes + 1);
-	for (size_t i = 0; i < MaxAxes; ++i)
+	PixelNumber xyFieldWidth = (DISPLAY_X - (2 * margin) - (MaxDisplayableAxes * fieldSpacing))/(MaxDisplayableAxes + 1);
+	for (size_t i = 0; i < MaxDisplayableAxes; ++i)
 	{
 		FloatField * const f = new FloatField(row8 + labelRowAdjust - 4, column, xyFieldWidth, TextAlignment::Left, (i == 2) ? 2 : 1, axisNames[i]);
 		printTabAxisPos[i] = f;
@@ -1263,7 +1392,6 @@ void CreatePendantJogTabFields(const ColourScheme& colours) {
 
 	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonTextBackColour);
 
-	static const char * array jogAxes[]  = { "X", "Y", "Z", "A", "C" };
 	static const float jogAmountValues[] = { 0.01, 0.10, 1.00 /*, 5.00 */ };
 
 	// Axis selection
@@ -1276,55 +1404,49 @@ void CreatePendantJogTabFields(const ColourScheme& colours) {
 	DisplayField::SetDefaultColours(colours.infoTextColour, colours.infoBackColour);
 	PixelNumber row = jogBlock + rowHeightP;
 	PixelNumber width = CalcWidth(3, DisplayXP);
-	for (size_t i = 0; i < MaxAxesPendant; ++i)
+	for (size_t i = 0; i < MaxDisplayableAxesP; ++i)
 	{
-		// This is a hack to only show X, Y, Z, A and C - U, V, W and B are just not initialized
-		if (i <= 2 || i == 6 || i == 8)
-		{
-			FloatField * const f = new FloatField(row + labelRowAdjust, CalcXPos(currentPosCol, width), width, TextAlignment::Right, 2);
-			jogTabAxisPos[i] = f;
-			f->SetValue(0.0);
-			mgr.AddField(f);
-			row += rowHeightP;
-		}
+		FloatField * const f = new FloatField(row + labelRowAdjust, CalcXPos(currentPosCol, width), width, TextAlignment::Right, 3);
+		jogTabAxisPos[i] = f;
+		f->SetValue(0.0);
+		mgr.AddField(f);
+		row += rowHeightP;
 	}
 
 	// Homing buttons
 	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.notHomedButtonBackColour);
-	pHomeAllButton  = AddIconButton(secondBlock + 1 * rowHeightP, homingCol, 3, IconHomeAll,		evSendCommand,	"G28", DisplayXP);
-	pHomeButtons[0] = AddIconButton(secondBlock + 2 * rowHeightP, homingCol, 3, IconHomeX,			evSendCommand,	"G28 X0", DisplayXP);
-	pHomeButtons[1] = AddIconButton(secondBlock + 3 * rowHeightP, homingCol, 3, IconHomeY,			evSendCommand,	"G28 Y0", DisplayXP);
-	pHomeButtons[2] = AddIconButton(secondBlock + 4 * rowHeightP, homingCol, 3, IconHomeZ,			evSendCommand,	"G28 Z0", DisplayXP);
+	pHomeAllButton  = AddIconButton(secondBlock + 1 * rowHeightP, homingCol, 3, IconHomeAll,			evSendCommand,	"G28", DisplayXP);
+	pHomeButtons[0] = AddIconButtonWithText(secondBlock + 2 * rowHeightP, homingCol, 3, IconHomeAll,	evHomeAxis, axisNames[0], axisNames[0], DisplayXP);
+	pHomeButtons[1] = AddIconButtonWithText(secondBlock + 3 * rowHeightP, homingCol, 3, IconHomeAll,	evHomeAxis, axisNames[1], axisNames[1], DisplayXP);
+	pHomeButtons[2] = AddIconButtonWithText(secondBlock + 4 * rowHeightP, homingCol, 3, IconHomeAll,	evHomeAxis, axisNames[2], axisNames[2], DisplayXP);
 	measureZButton  = AddTextButton(secondBlock + 5 * rowHeightP, homingCol, 3, strings->measureZ,  evMeasureZ, 	"M98 P\"measureZ.g\"", DisplayXP);
 	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonTextBackColour);
 	                  AddTextButton(secondBlock + 6 * rowHeightP, homingCol, 3, strings->macro,     evListMacros,    nullptr, DisplayXP);
 
 	// Tool selection buttons
 	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonImageBackColour);
-	toolSelectButtons[1]  = AddIconButton(secondBlock + 1 * rowHeightP, toolsCol, 3, heaterIcons[1], evToolSelect, 1, DisplayXP);
-	toolSelectButtons[2]  = AddIconButton(secondBlock + 2 * rowHeightP, toolsCol, 3, heaterIcons[2], evToolSelect, 2, DisplayXP);
-	toolSelectButtons[3]  = AddIconButton(secondBlock + 3 * rowHeightP, toolsCol, 3, heaterIcons[3], evToolSelect, 3, DisplayXP);
-	toolSelectButtons[4]  = AddIconButton(secondBlock + 4 * rowHeightP, toolsCol, 3, heaterIcons[4], evToolSelect, 4, DisplayXP);
-	toolSelectButtons[5]  = AddIconButton(secondBlock + 5 * rowHeightP, toolsCol, 3, heaterIcons[5], evToolSelect, 5, DisplayXP);
-	toolSelectButtons[10] = AddTextButton(secondBlock + 6 * rowHeightP, toolsCol, 3, strings->probe, evToolSelect, 10, DisplayXP);
+	for (size_t i = 0; i < MaxPendantTools; ++i)
+	{
+		toolSelectButtons[i]  = AddIconButtonWithText(secondBlock + (i + 1) * rowHeightP, toolsCol, 3, IconNozzle, evToolSelect, i, i, DisplayXP);
+	}
 
 	// Extrusion/Heating
 	// Add the current temperature field
 	DisplayField::SetDefaultColours(colours.infoTextColour, colours.defaultBackColour);
-	currentTempP = new FloatField(secondBlock + 1 * rowHeightP, CalcXPos(extrudeCol, colWidth), colWidth, TextAlignment::Centre, 1);
-	currentTempP->SetValue(0.0);
-	mgr.AddField(currentTempP);
+	currentTempPJog = new FloatField(secondBlock + 1 * rowHeightP, CalcXPos(extrudeCol, colWidth), colWidth, TextAlignment::Centre, 1);
+	currentTempPJog->SetValue(0.0);
+	mgr.AddField(currentTempPJog);
 
 	// Add the active temperature button
 	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonTextBackColour);
-	activeTempP = AddIntegerButton(secondBlock + 3 * rowHeightP, extrudeCol, 3, nullptr, nullptr, evAdjustActiveTemp, DisplayXP);
-	activeTempP->SetValue(0);
-	activeTempP->SetEvent(evAdjustActiveTemp, (int)-1);
+	activeTempPJog = AddIntegerButton(secondBlock + 3 * rowHeightP, extrudeCol, 3, nullptr, nullptr, evAdjustActiveTemp, DisplayXP);
+	activeTempPJog->SetValue(0);
+	activeTempPJog->SetEvent(evAdjustActiveTemp, (int)-1);
 
 	// Add the standby temperature button
-	standbyTempP = AddIntegerButton(secondBlock + 5 * rowHeightP, extrudeCol, 3, nullptr, nullptr, evAdjustStandbyTemp, DisplayXP);
-	standbyTempP->SetValue(0);
-	standbyTempP->SetEvent(evAdjustStandbyTemp, (int)-1);
+	standbyTempPJog = AddIntegerButton(secondBlock + 5 * rowHeightP, extrudeCol, 3, nullptr, nullptr, evAdjustStandbyTemp, DisplayXP);
+	standbyTempPJog->SetValue(0);
+	standbyTempPJog->SetEvent(evAdjustStandbyTemp, (int)-1);
 
 	// Add the Extrude popup button
 	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonTextBackColour);
@@ -1400,17 +1522,13 @@ void CreatePendantJobTabFields(const ColourScheme& colours) {
 	DisplayField::SetDefaultColours(colours.infoTextColour, colours.infoBackColour);
 	const PixelNumber colWidth = CalcWidth(5, DisplayXP);
 	unsigned int actualCol = 0;
-	for (size_t i = 0; i < MaxAxesPendant; ++i)
+	for (size_t i = 0; i < MaxDisplayableAxesP; ++i)
 	{
-		// This is a hack to only show X, Y, Z, A and C - U, V, W and B are just hidden behind visible ones
-		if (i <= 2 || i == 6 || i == 8)
-		{
-			FloatField * const f = new FloatField(row5P + labelRowAdjust - 4, CalcXPos(actualCol, colWidth), colWidth, TextAlignment::Left, (i == 2) ? 2 : 1, axisNames[i]);
-			jobTabAxisPos[i] = f;
-			f->SetValue(0.0);
-			mgr.AddField(f);
-			++actualCol;
-		}
+		FloatField * const f = new FloatField(row5P + labelRowAdjust - 4, CalcXPos(actualCol, colWidth), colWidth, TextAlignment::Left, (i == 2) ? 2 : 1);
+		jobTabAxisPos[i] = f;
+		f->SetValue(0.0);
+		mgr.AddField(f);
+		++actualCol;
 	}
 
 	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonTextBackColour);
@@ -1422,20 +1540,20 @@ void CreatePendantJobTabFields(const ColourScheme& colours) {
 	pExtruderPercentButton->SetValue(100);
 	pExtruderPercentButton->SetEvent(evPAdjustExtrusionPercent, "M221 S");
 
-	pSpindleRPMButton = AddIntegerButton(row7P, 0, 1, strings->spindleRPM, nullptr, evPAdjustSpindleRPM, DisplayXP);
+	pSpindleRPMButton = AddIntegerButton(row7P, 0, 1, strings->spindleRPM, nullptr, evAdjustActiveRPM, DisplayXP);
 	pSpindleRPMButton->SetValue(0);
 
 	// Heating control
 	DisplayField::SetDefaultColours(colours.titleBarTextColour, colours.titleBarBackColour);
 	mgr.AddField(new StaticTextField(row8P + ((rowHeightP)/3), xPos, fullWidth, TextAlignment::Centre, strings->heatControl));
 
-	const PixelNumber iconWidth = 40;
+	const PixelNumber iconWidth = 50;
 	const PixelNumber iconColWidth = margin + iconWidth;
 	const PixelNumber currentColWidth = 140;
 	const PixelNumber activeColWidth = 128;
 	const PixelNumber standbyColWidth = 154;
 	const PixelNumber iconCol = margin;
-	const PixelNumber currentCol = iconCol + iconColWidth + margin;
+	const PixelNumber currentCol = iconCol + iconColWidth + margin - 8;
 	const PixelNumber activeCol = currentCol + currentColWidth + margin;
 	const PixelNumber standbyCol = activeCol + activeColWidth + margin;
 	DisplayField::SetDefaultColours(colours.labelTextColour, colours.defaultBackColour);
@@ -1450,16 +1568,16 @@ void CreatePendantJobTabFields(const ColourScheme& colours) {
 
 		// Add the icon button
 		DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonImageBackColour);
-		SingleButton * const b = new IconButton(row, iconCol, iconWidth, heaterIcons[i], evSelectHead, i);
-//		b->Show(false);
-//		toolButtonsPJob[i] = b;
+		IconButtonWithText * const b = new IconButtonWithText(row, iconCol, iconWidth, IconNozzle, evSelectHead, i, i);
+		b->Show(false);
+		toolButtonsPJob[i] = b;
 		mgr.AddField(b);
 
 		// Add the current temperature field
 		DisplayField::SetDefaultColours(colours.infoTextColour, colours.defaultBackColour);
 		FloatField * const f = new FloatField(row + labelRowAdjust, currentCol+25, tempButtonWidth, TextAlignment::Centre, 1);
 		f->SetValue(0.0);
-//		f->Show(false);
+		f->Show(false);
 		currentTempsPJob[i] = f;
 		mgr.AddField(f);
 
@@ -1468,7 +1586,7 @@ void CreatePendantJobTabFields(const ColourScheme& colours) {
 		IntegerButton *ib = new IntegerButton(row, activeCol+20, tempButtonWidth);
 		ib->SetEvent(evAdjustActiveTemp, (int)i);
 		ib->SetValue(0);
-//		ib->Show(false);
+		ib->Show(false);
 		activeTempsPJob[i] = ib;
 		mgr.AddField(ib);
 
@@ -1476,7 +1594,7 @@ void CreatePendantJobTabFields(const ColourScheme& colours) {
 		ib = new IntegerButton(row, standbyCol+30, tempButtonWidth);
 		ib->SetEvent(evAdjustStandbyTemp, (int)i);
 		ib->SetValue(0);
-//		ib->Show(false);
+		ib->Show(false);
 		standbyTempsPJob[i] = ib;
 		mgr.AddField(ib);
 	}
@@ -1599,6 +1717,7 @@ namespace UI
 
 		// Create the popup fields
 		CreateIntegerAdjustPopup(colours);
+		CreateIntegerRPMAdjustPopup(colours);
 #ifdef SUPPORT_ENCODER
 		CreateIntegerAdjustWithEncoderPopup(colours);
 #endif
@@ -1664,116 +1783,296 @@ namespace UI
 		mgr.Show(pResetButton, true);
 	}
 
-	// Show or hide an axis on the move button grid and on the axis display
-	void ShowAxis(size_t axis, bool b)
+	bool IsVisibleAxisPendant(const char * axis)
 	{
+		for (size_t i = 0; i < MaxDisplayableAxesP; ++i)
+		{
+			if (jogAxes[i][0] == axis[0])
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	// Show or hide an axis on the move button grid and on the axis display
+	void ShowAxis(size_t slot, bool b)
+	{
+		if (slot >= MaxDisplayableAxes)
+		{
+			return;
+		}
 		// The table gives us a pointer to the label field, which is followed by 8 buttons. So we need to show or hide 9 fields.
-		DisplayField *f = moveAxisRows[axis];
+		DisplayField *f = moveAxisRows[slot];
 		for (int i = 0; i < 9 && f != nullptr; ++i)
 		{
 			f->Show(b);
 			f = f->next;
 		}
-		controlTabAxisPos[axis]->Show(b);
-		printTabAxisPos[axis]->Show(b);
-		if (jobTabAxisPos[axis] != nullptr)
+		controlTabAxisPos[slot]->Show(b);
+		printTabAxisPos[slot]->Show(b);
+		if (numDisplayedAxes < MaxDisplayableAxes)
 		{
-			jobTabAxisPos[axis]->Show(b);
+			movePopupAxisPos[slot]->Show(b);		// the move popup axis positions occupy the last axis row of the move popup
 		}
-		movePopupAxisPos[axis]->Show(b && numAxes < MaxAxes);		// the move popup axis positions occupy the last axis row of the move popu[p
+		else
+		{
+			// This is incremental and we might end up that this row is no longer available
+			for (size_t i = 0; i < MaxDisplayableAxes; ++i)
+			{
+				movePopupAxisPos[i]->Show(false);
+			}
+		}
+	}
+
+	// Show or hide an axis on the move button grid and on the axis display
+	void ShowAxisP(size_t slot, bool b)
+	{
+		if (slot >= MaxDisplayableAxesP)
+		{
+			return;
+		}
+		jobTabAxisPos[slot]->Show(b);
 	}
 
 	void UpdateAxisPosition(size_t axis, float fval)
 	{
-		if (axis < MaxAxes)
+		if (axis < MaxTotalAxes)
 		{
-			if (controlTabAxisPos[axis] != nullptr)
+			size_t slot = axes[axis].GetSlot();
+			if (slot < MaxDisplayableAxes)
 			{
-				controlTabAxisPos[axis]->SetValue(fval);
+				if (controlTabAxisPos[slot] != nullptr)
+				{
+					controlTabAxisPos[slot]->SetValue(fval);
+				}
+				if (printTabAxisPos[slot] != nullptr)
+				{
+					printTabAxisPos[slot]->SetValue(fval);
+				}
+				if (movePopupAxisPos[slot] != nullptr)
+				{
+					movePopupAxisPos[slot]->SetValue(fval);
+				}
 			}
-			if (printTabAxisPos[axis] != nullptr)
+			size_t slotP = axes[axis].GetSlotP();
+			if (slotP < MaxDisplayableAxesP)
 			{
-				printTabAxisPos[axis]->SetValue(fval);
-			}
-			if (movePopupAxisPos[axis] != nullptr)
-			{
-				movePopupAxisPos[axis]->SetValue(fval);
+				jogTabAxisPos[slotP]->SetValue(fval);
+				jobTabAxisPos[slotP]->SetValue(fval);
 			}
 		}
-		if (axis < MaxAxesPendant)
+	}
+
+	Spindle* GetSpindle(size_t index, bool create = false)
+	{
+		Spindle* ret = spindles;
+		for (; ret != nullptr; ret = ret->next)
 		{
-			if (jogTabAxisPos[axis] != nullptr)
+			if (ret->index == index)
 			{
-				jogTabAxisPos[axis]->SetValue(fval);
-			}
-			if (jobTabAxisPos[axis] != nullptr)
-			{
-				jobTabAxisPos[axis]->SetValue(fval);
+				break;
 			}
 		}
+
+		// Not found, create new
+		if (ret == nullptr && create)
+		{
+			ret = new Spindle;
+			ret->index = index;
+
+			if (spindles == nullptr || spindles->index > index)
+			{
+				ret->next = spindles;
+				spindles = ret;
+			}
+			else
+			{
+				// Inset it at he correct spot
+				auto current = spindles;
+				while (current->next != nullptr && current->next->index < index)
+				{
+					current = current->next;
+				}
+				ret->next = current->next;
+				current->next = ret;
+			}
+		}
+		return ret;
+	}
+
+	Tool* GetTool(size_t toolNumber, bool create = false)
+	{
+
+		auto ret = tools;
+		for (; ret != nullptr; ret = ret->next)
+		{
+			if (ret->index == toolNumber)
+			{
+				break;
+			}
+		}
+
+		// Not found, create new
+		if (ret == nullptr && create)
+		{
+			ret = new Tool;
+			ret->index = toolNumber;
+
+			if (tools == nullptr || tools->index > toolNumber)
+			{
+				ret->next = tools;
+				tools = ret;
+			}
+			else
+			{
+				// Insert it at the correct spot
+				auto current = tools;
+				while (current->next != nullptr && current->next->index < toolNumber)
+				{
+					current = current->next;
+				}
+				ret->next = current->next;
+				current->next = ret;
+			}
+		}
+		return ret;
+	}
+
+	Tool* GetToolForExtruder(size_t extruder)
+	{
+		for (auto tool = tools; tool != nullptr; tool = tool->next)
+		{
+			if (tool->extruder == (int)extruder)
+			{
+				return tool;
+			}
+		}
+		return nullptr;
+	}
+
+	Tool* GetToolForHeater(size_t heater)
+	{
+		for (auto tool = tools; tool != nullptr; tool = tool->next)
+		{
+			if (tool->heater == (int)heater)
+			{
+				return tool;
+			}
+		}
+		return nullptr;
+	}
+
+	int GetHeaterSlot(size_t heater)
+		{
+		if ((int)heater == bedHeater.heater)
+		{
+			return bedHeater.slot;
+		}
+		if ((int)heater == chamberHeater.heater)
+		{
+			return chamberHeater.slot;
+		}
+		auto tool = GetToolForHeater(heater);
+		return tool != nullptr ? tool->slot : -1;
 	}
 
 	void UpdateCurrentTemperature(size_t heater, float fval)
 	{
-		if (heater < MaxHeaters && currentTemps[heater] != nullptr)
-		{
-			currentTemps[heater]->SetValue(fval);
-		}
-		if (heater < MaxHeaters && currentTempsPJob[heater] != nullptr)
-		{
-			currentTempsPJob[heater]->SetValue(fval);
-		}
-		if (heater > 0 && (int)heater == currentTool)
-		{
-			currentTempP->SetValue(fval);
-		}
-	}
-
-	void UpdateHeaterStatus(size_t heater, int ival)
-	{
-		if (heater < MaxHeaters)
-		{
-			heaterStatus[heater] = ival;
-				Colour c = (ival == 1) ? colours->standbyBackColour
-							: (ival == 2) ? colours->activeBackColour
-							: (ival == 3) ? colours->errorBackColour
-							: (ival == 4) ? colours->tuningBackColour
-							: colours->defaultBackColour;
-			if (currentTemps[heater] != nullptr)
-			{
-				currentTemps[heater]->SetColours((ival == 3) ? colours->errorTextColour : colours->infoTextColour, c);
-			}
-			if (currentTempsPJob[heater] != nullptr)
-			{
-				currentTempsPJob[heater]->SetColours((ival == 3) ? colours->errorTextColour : colours->infoTextColour, c);
-			}
-			if (heater > 0 && (int)heater == currentTool)
-			{
-				currentTempP->SetColours((ival == 3) ? colours->errorTextColour : colours->infoTextColour, c);
-			}
-		}
-	}
-
-	void SetCurrentTool(int ival)
-	{
-		if (ival == currentTool)
+		const int heaterSlot = GetHeaterSlot(heater);
+		if (heaterSlot < 0)
 		{
 			return;
 		}
-		toolSelectButtons[currentTool]->SetColours(colours->buttonTextColour, colours->buttonImageBackColour);
-		currentTool = ival;
-		if (currentTool >= 0)
+		currentTemps[heaterSlot]->SetValue(fval);
+
+		auto tool = GetToolForHeater(heater);
+		if (tool != nullptr)
 		{
-			toolSelectButtons[currentTool]->SetColours(colours->infoTextColour, colours->standbyBackColour);
+			if (tool->index == currentTool)
+			{
+				currentTempPJog->SetValue(fval);
+			}
+
+			if (tool->slotP < MaxPendantTools)
+			{
+				currentTempsPJob[tool->slotP]->SetValue(fval);
+			}
 		}
-		else {
-			currentTempP->SetValue(0);
-			currentTempP->SetColours(colours->infoTextColour, colours->defaultBackColour);
-			UpdateField(activeTempP, 0);
-			UpdateField(standbyTempP, 0);
+	}
+
+	void UpdateHeaterStatus(const size_t heater, const HeaterStatus status)
+	{
+		const int heaterSlot = GetHeaterSlot(heater);
+		if (heaterSlot < 0)
+		{
+			return;
+		}
+		heaterStatus[heaterSlot] = status;
+		Colour c = (status == HeaterStatus::standby) ? colours->standbyBackColour
+						: (status == HeaterStatus::active) ? colours->activeBackColour
+						: (status == HeaterStatus::fault) ? colours->errorBackColour
+						: (status == HeaterStatus::tuning) ? colours->tuningBackColour
+						: colours->defaultBackColour;
+		if (currentTemps[heaterSlot] != nullptr)
+		{
+			currentTemps[heaterSlot]->SetColours((status == HeaterStatus::fault) ? colours->errorTextColour : colours->infoTextColour, c);
+		}
+		auto tool = GetToolForHeater(heater);
+		if (tool != nullptr)
+		{
+			if (tool->index == currentTool)
+			{
+				currentTempPJog->SetColours((status == HeaterStatus::fault) ? colours->errorTextColour : colours->infoTextColour, c);
+			}
+			if (tool->slotP < MaxPendantTools)
+			{
+				currentTempsPJob[tool->slotP]->SetColours((status == HeaterStatus::fault) ? colours->errorTextColour : colours->infoTextColour, c);
+			}
+		}
+	}
+
+	void SetCurrentTool(int32_t ival)
+	{
+		if (ival == currentTool)
+		{
+//			return;
+		}
+		currentTool = ival;
+		if (currentTool < 0)
+		{
+			currentTempPJog->SetValue(0);
+			currentTempPJog->SetColours(colours->infoTextColour, colours->defaultBackColour);
+			UpdateField(activeTempPJog, 0);
+			UpdateField(standbyTempPJog, 0);
+			UpdateField(pSpindleRPMButton, 0);
+		}
+		else
+		{
+			// FIXME: this does not work initially because of the return up top but removing it does unecessary things
+			auto tool = GetTool(currentTool);
+			if (tool != nullptr)
+			{
+				const bool hasHeater = tool->heater > -1;
+				const bool hasSpindle = tool->spindle != nullptr;
+				mgr.Show(currentTempPJog, hasHeater || hasSpindle);
+				mgr.Show(activeTempPJog, hasHeater || hasSpindle);
+				mgr.Show(standbyTempPJog, hasHeater);
+				standbyTempPJog->SetEvent(standbyTempPJog->GetEvent(), tool->index);
+
+				// We rarely see updates of this value so update it here
+				if (hasSpindle)
+				{
+					UpdateField(activeTempPJog, tool->spindle->active);
+					activeTempPJog->SetEvent(evAdjustActiveRPM, tool->spindle->index);
+				}
+				else
+				{
+					UpdateField(pSpindleRPMButton, 0);
+				}
+			}
 		}
 		currentToolField->SetValue(currentTool);
-		pSpindleRPMButton->SetValue(0);
 	}
 
 	static int timesLeft[3];
@@ -1994,6 +2293,7 @@ namespace UI
 		case PrinterStatus::configuring:
 		case PrinterStatus::connecting:
 		case PrinterStatus::flashing:
+		case PrinterStatus::panelInitializing:
 			return;
 		default:
 			break;
@@ -2023,10 +2323,13 @@ namespace UI
 						newValue = constrain<int>(newValue, 1, 1000);
 						break;
 
-					case evPAdjustSpindleRPM:
-						static const int spindleRpmMultiplier = 100;
-						static const int maxSpindleRpm = 30000;
-						newValue = constrain<int>((newValue - change) + (change * spindleRpmMultiplier), -maxSpindleRpm, maxSpindleRpm);
+					case evAdjustActiveRPM:
+						{
+							auto spindle = GetSpindle(fieldBeingAdjusted.GetIParam());
+							static const int spindleRpmMultiplier = 100;
+							static const int maxSpindleRpm = spindle->max;
+							newValue = constrain<int>((newValue - change) + (change * spindleRpmMultiplier), -maxSpindleRpm, maxSpindleRpm);
+						}
 						break;
 
 					default:
@@ -2161,40 +2464,96 @@ namespace UI
 	// Update the geometry or the number of axes
 	void UpdateGeometry(unsigned int p_numAxes, bool p_isDelta)
 	{
-		if (p_numAxes != numAxes || p_isDelta != isDelta)
+		if (p_numAxes != numVisibleAxes || p_isDelta != isDelta)
 		{
-			numAxes = p_numAxes;
+			numVisibleAxes = p_numAxes;
 			isDelta = p_isDelta;
 			FileManager::RefreshMacrosList();
-			for (size_t i = 0; i < MaxAxes; ++i)
+			numDisplayedAxes = 0;
+			size_t slotP = 0;
+			for (size_t i = 0; i < MaxTotalAxes; ++i)
 			{
-				mgr.Show(homeButtons[i], !isDelta && i < numAxes);
-				ShowAxis(i, i < numAxes);
+				Axis& axis = axes[i];
+				axis.SetSlot(MaxTotalAxes);
+				axis.SetSlotP(MaxTotalAxes);
+				if (!axis.IsVisible())
+				{
+					continue;
+				}
+				const char * letter = axis.GetLetter();
+				if (numDisplayedAxes < MaxDisplayableAxes)
+				{
+					axis.SetSlot(numDisplayedAxes);
+					++numDisplayedAxes;
+
+					// Update axis letter everywhere we display it
+					const uint8_t slot = axis.GetSlot();
+					controlTabAxisPos	[slot]->SetLabel(letter);
+					moveAxisRows		[slot]->SetValue(letter);
+					printTabAxisPos		[slot]->SetLabel(letter);
+					movePopupAxisPos	[slot]->SetLabel(letter);
+					homeButtons			[slot]->SetText(letter);
+
+					// Update axis letter to be sent for homing commands
+					homeButtons[slot]->SetEvent(homeButtons[slot]->GetEvent(), letter);
+
+					mgr.Show(homeButtons[slot], !isDelta);
+					ShowAxis(slot, true);
+				}
+				if (IsVisibleAxisPendant(letter))
+				{
+					axis.SetSlotP(slotP);
+					jobTabAxisPos[slotP]->SetLabel(letter);
+					ShowAxisP(slotP, slotP < MaxTotalAxes);
+					++slotP;
+				}
+			}
+			// Hide axes possibly shown before
+			for (size_t i = numDisplayedAxes; i < MaxDisplayableAxes; ++i)
+			{
+				mgr.Show(homeButtons[i], false);
+				ShowAxis(i, false);
+			}
+			for (size_t i = slotP; i < MaxDisplayableAxesP; ++i)
+			{
+				ShowAxisP(i, false);
 			}
 		}
 	}
 
 	// Update the homed status of the specified axis. If the axis is -1 then it represents the "all homed" status.
-	void UpdateHomedStatus(int axis, bool isHomed)
+	void UpdateHomedStatus(size_t axis, bool isHomed)
 	{
-		SingleButton *homeButton = nullptr, *pHomeButton = nullptr;
-		if (axis < 0)
+		if (axis >= MaxTotalAxes)
 		{
-			homeButton = homeAllButton;
-			pHomeButton = pHomeAllButton;
+			return;
 		}
-		else if (axis < MaxAxes)
+		axes[axis].SetHomed(isHomed);
+		const size_t slot = axes[axis].GetSlot();
+		const size_t slotP = axes[axis].GetSlotP();
+		if (slot < MaxDisplayableAxes)
 		{
-			homeButton = homeButtons[axis];
-			pHomeButton = pHomeButtons[axis];
+			homeButtons[slot]->SetColours(colours->buttonTextColour, (isHomed) ? colours->homedButtonBackColour : colours->notHomedButtonBackColour);
 		}
-		if (homeButton != nullptr)
+		if (slotP < MaxDisplayableAxesP)
 		{
-			homeButton->SetColours(colours->buttonTextColour, (isHomed) ? colours->homedButtonBackColour : colours->notHomedButtonBackColour);
+			pHomeButtons[slotP]->SetColours(colours->buttonTextColour, (isHomed) ? colours->homedButtonBackColour : colours->notHomedButtonBackColour);
 		}
-		if (pHomeButton != nullptr)
+
+		bool allHomed = true;
+		for (size_t i = 0; i < MaxTotalAxes; ++i)
 		{
-			pHomeButton->SetColours(colours->buttonTextColour, (isHomed) ? colours->homedButtonBackColour : colours->notHomedButtonBackColour);
+			if (axes[i].IsVisible() && !axes[i].IsHomed())
+			{
+				allHomed = false;
+				break;
+			}
+		}
+		if (allHomed != allAxesHomed)
+		{
+			allAxesHomed = allHomed;
+			homeAllButton->SetColours(colours->buttonTextColour, (allAxesHomed) ? colours->homedButtonBackColour : colours->notHomedButtonBackColour);
+			pHomeAllButton->SetColours(colours->buttonTextColour, (allAxesHomed) ? colours->homedButtonBackColour : colours->notHomedButtonBackColour);
 		}
 	}
 
@@ -2222,38 +2581,79 @@ namespace UI
 	// Update an active temperature
 	void UpdateActiveTemperature(size_t index, int ival)
 	{
-		if (index < MaxHeaters)
+		const int heaterSlot = GetHeaterSlot(index);
+		if (heaterSlot >= 0)
 		{
-			UpdateField(activeTemps[index], ival);
-			UpdateField(activeTempsPJob[index], ival);
+			UpdateField(activeTemps[heaterSlot], ival);
 		}
-		if (index > 0 && (int)index == currentTool)
+
+		auto tool = GetToolForHeater(index);
+		if (tool != nullptr)
 		{
-			UpdateField(activeTempP, ival);
+			if (tool->index == currentTool)
+			{
+				UpdateField(activeTempPJog, ival);
+			}
+			if (tool->slotP < MaxPendantTools)
+			{
+				UpdateField(activeTempsPJob[tool->slotP], ival);
+			}
+		}
+		else if ((int)index == bedHeater.heater && bedHeater.slotP < MaxPendantTools)
+		{
+			UpdateField(activeTempsPJob[bedHeater.slotP], ival);
+		}
+		else if ((int)index == chamberHeater.heater && chamberHeater.slotP < MaxPendantTools)
+		{
+			UpdateField(activeTempsPJob[chamberHeater.slotP], ival);
 		}
 	}
 
 	// Update a standby temperature
 	void UpdateStandbyTemperature(size_t index, int ival)
 	{
-		if (index < MaxHeaters)
+		const int heaterSlot = GetHeaterSlot(index);
+		if (heaterSlot >= 0)
 		{
-			UpdateField(standbyTemps[index], ival);
-			UpdateField(standbyTempsPJob[index], ival);
+			UpdateField(standbyTemps[heaterSlot], ival);
 		}
-		if (index > 0 && (int)index == currentTool)
+
+		auto tool = GetToolForHeater(index);
+		if (tool != nullptr)
 		{
-			UpdateField(standbyTempP, ival);
+			if (tool->index == currentTool)
+			{
+				UpdateField(standbyTempPJog, ival);
+			}
+			if (tool->slotP < MaxPendantTools)
+			{
+				UpdateField(standbyTempsPJob[tool->slotP], ival);
+			}
+		}
+		else if ((int)index == bedHeater.heater && bedHeater.slotP < MaxPendantTools)
+		{
+			UpdateField(standbyTempsPJob[bedHeater.slotP], ival);
+		}
+		else if ((int)index == chamberHeater.heater && chamberHeater.slotP < MaxPendantTools)
+		{
+			UpdateField(standbyTempsPJob[chamberHeater.slotP], ival);
 		}
 	}
 
 	// Update an extrusion factor
 	void UpdateExtrusionFactor(size_t index, int ival)
 	{
-		if (index < MaxExtruders)
+		auto tool = GetToolForExtruder(index);
+		if (tool != nullptr)
 		{
-			UpdateField(extrusionFactors[index], ival);
-			UpdateField(pExtruderPercentButton, ival);
+			if (tool->slot < MaxHeaters)
+			{
+				UpdateField(extrusionFactors[tool->slot], ival);
+			}
+			if (tool->index == currentTool)
+			{
+				UpdateField(pExtruderPercentButton, ival);
+			}
 		}
 	}
 
@@ -2267,14 +2667,14 @@ namespace UI
 	// Process a new message box alert, clearing any existing one
 	void ProcessAlert(const Alert& alert)
 	{
-		alertPopup->Set(alert.title.c_str(), alert.text.c_str(), alert.mode, alert.controls);
-		alertPopupP->Set(alert.title.c_str(), alert.text.c_str(), alert.mode, alert.controls);
 		if (isLandscape)
 		{
-		mgr.SetPopup(alertPopup, AutoPlace, AutoPlace);
+			alertPopup->Set(alert.title.c_str(), alert.text.c_str(), alert.mode, alert.controls);
+			mgr.SetPopup(alertPopup, AutoPlace, AutoPlace);
 		}
 		else
 		{
+			alertPopupP->Set(alert.title.c_str(), alert.text.c_str(), alert.mode, alert.controls);
 			mgr.SetPopupP(alertPopupP, AutoPlace, AutoPlace);
 		}
 		RestoreBrightness();
@@ -2316,14 +2716,14 @@ namespace UI
 	{
 		if (alertMode < 2)												// if the current alert doesn't require acknowledgement
 		{
-			alertPopup->Set(strings->message, text, 1, 0);
-			alertPopupP->Set(strings->message, text, 1, 0);
 			if (isLandscape)
 			{
-			mgr.SetPopup(alertPopup, AutoPlace, AutoPlace);
+				alertPopup->Set(strings->message, text, 1, 0);
+				mgr.SetPopup(alertPopup, AutoPlace, AutoPlace);
 			}
 			else
 			{
+				alertPopupP->Set(strings->message, text, 1, 0);
 				mgr.SetPopupP(alertPopupP, AutoPlace, AutoPlace);
 			}
 			alertMode = 1;												// a simple alert is like a mode 1 alert without a title
@@ -2339,18 +2739,18 @@ namespace UI
 	{
 		const bool isErrorMessage = stringStartsWith(text, "Error");
 		if (   alertMode < 2											// if the current alert doesn't require acknowledgement
-			&& (currentTab == tabControl || currentTab == tabPrint)
+			&& !(currentTab == tabSetup || currentTab == tabMsg)		// don't show on setup tab or on console tab
 			&& (isErrorMessage || infoTimeout != 0)
 		   )
 		{
-			alertPopup->Set(strings->response, text, 1, 0);
-			alertPopupP->Set(strings->response, text, 1, 0);
 			if (isLandscape)
 			{
-			mgr.SetPopup(alertPopup, AutoPlace, AutoPlace);
+				alertPopup->Set(strings->response, text, 1, 0);
+				mgr.SetPopup(alertPopup, AutoPlace, AutoPlace);
 			}
 			else
 			{
+				alertPopupP->Set(strings->response, text, 1, 0);
 				mgr.SetPopupP(alertPopupP, AutoPlace, AutoPlace);
 			}
 			alertMode = -1;												// make sure that a call to ClearAlert doesn't clear us
@@ -2474,21 +2874,6 @@ namespace UI
 		SerialIo::SendString(" F");
 		SerialIo::SendString(rate);
 		SerialIo::SendString("\nM121\n");
-	}
-
-	int GetHeaterToSet(int heater) {
-		int heaterToSet = heater - 1;
-		if (!isLandscape) {
-			if (currentTab == tabJog) {
-				if (currentTool == -1) {
-					heaterToSet = -1;
-				}
-				heaterToSet = currentTool;
-			} else if (currentTab == tabJob) {
-				heaterToSet = heater;
-			}
-		}
-		return heaterToSet;
 	}
 
 	// Process a touch event
@@ -2627,16 +3012,34 @@ namespace UI
 				}
 				break;
 
+			case evAdjustActiveRPM:
+				Adjusting(bp);
+				if (isLandscape)
+				{
+					mgr.SetPopup(setTempPopup, AutoPlace, popupY);
+				}
+				else
+				{
+					oldIntValue = static_cast<IntegerButton*>(bp.GetButton())->GetValue();
+					const PixelNumber xPos = f->GetMinX();
+					// Try to fit it below but fall back to above if not enough space
+					const PixelNumber yPos =
+							(f->GetMaxY() + margin + setTempPopupEncoder->GetHeight()) <= DisplayYP
+								? f->GetMaxY() + margin
+								: f->GetMinY() - margin - setTempPopupEncoder->GetHeight();
+					mgr.SetPopupP(setTempPopupEncoder, xPos, yPos);
+				}
+				break;
+
 			case evAdjustSpeed:
 			case evExtrusionFactor:
 			case evAdjustFan:
 			case evPAdjustExtrusionPercent:
-			case evPAdjustSpindleRPM:
 				oldIntValue = static_cast<IntegerButton*>(bp.GetButton())->GetValue();
 				Adjusting(bp);
 				if (isLandscape)
 				{
-				mgr.SetPopup(setTempPopup, AutoPlace, popupY);
+					mgr.SetPopup(setTempPopup, AutoPlace, popupY);
 				}
 				else
 				{
@@ -2659,21 +3062,20 @@ namespace UI
 					case evAdjustActiveTemp:
 						{
 							int heater = fieldBeingAdjusted.GetIParam();
-							if (heater == 0)
+							if (heater == bedHeater.heater || heater == chamberHeater.heater)
 							{
-								SerialIo::SendString("M140 S");
+								SerialIo::SendString("M14");
+								SerialIo::SendInt(heater == bedHeater.heater ? 0 : 1);
+								SerialIo::SendString(" P");
+								SerialIo::SendInt(((heater == bedHeater.heater) ? bedHeater : chamberHeater).index);
+								SerialIo::SendString(" S");
 								SerialIo::SendInt(val);
 								SerialIo::SendChar('\n');
 							}
 							else
 							{
-								int heaterToSet = GetHeaterToSet(heater);
-								if (heaterToSet <= -1)
-								{
-									break;
-								}
 								SerialIo::SendString(((GetFirmwareFeatures() & noG10Temps) == 0) ? "G10 P" : "M104 T");
-								SerialIo::SendInt(heaterToSet);
+								SerialIo::SendInt(heater);
 								SerialIo::SendString(" S");
 								SerialIo::SendInt(val);
 								SerialIo::SendChar('\n');
@@ -2684,23 +3086,44 @@ namespace UI
 					case evAdjustStandbyTemp:
 						{
 							int heater = fieldBeingAdjusted.GetIParam();
-							if (heater == 0)
+							if (heater == bedHeater.heater || heater == chamberHeater.heater)
 							{
-								SerialIo::SendString("M140 R");
+								SerialIo::SendString("M14");
+								SerialIo::SendInt(heater == bedHeater.heater ? 0 : 1);
+								SerialIo::SendString(" P");
+								SerialIo::SendInt(((heater == bedHeater.heater) ? bedHeater : chamberHeater).index);
+								SerialIo::SendString(" R");
 								SerialIo::SendInt(val);
 								SerialIo::SendChar('\n');
 							}
 							else
  							{
-								int heaterToSet = GetHeaterToSet(heater);
-								if (heaterToSet <= -1)
-								{
-									break;
-								}
 								SerialIo::SendString("G10 P");
-								SerialIo::SendInt(heaterToSet);
+								SerialIo::SendInt(heater);
 								SerialIo::SendString(" R");
 								SerialIo::SendInt(val);
+								SerialIo::SendChar('\n');
+							}
+						}
+						break;
+
+					case evAdjustActiveRPM:
+						{
+							auto spindle = GetSpindle(fieldBeingAdjusted.GetIParam());
+							if (val == 0)
+							{
+								SerialIo::SendString("M5 P");
+								SerialIo::SendInt(spindle->index);
+								SerialIo::SendChar('\n');
+							}
+							else
+							{
+								SerialIo::SendChar('M');
+								SerialIo::SendInt(val < 0 ? 4 : 3);
+								SerialIo::SendString(" P");
+								SerialIo::SendInt(spindle->index);
+								SerialIo::SendString(" S");
+								SerialIo::SendInt(abs(val));
 								SerialIo::SendChar('\n');
 							}
 						}
@@ -2721,19 +3144,6 @@ namespace UI
 						SerialIo::SendString("M106 S");
 						SerialIo::SendInt((256 * val)/100);
 						SerialIo::SendChar('\n');
-						break;
-
-					case evPAdjustSpindleRPM:
-						{
-							if (val == 0) {
-								SerialIo::SendString("M5\n");
-							} else {
-								String<MaxEncoderCommandLength> cmd;
-								const uint8_t direction = val > 0 ? 3 : 4;
-								cmd.printf("M%d P%d S%d\n", direction, currentTool, val);
-								SerialIo::SendString(cmd.c_str());
-							}
-						}
 						break;
 
 					default:
@@ -2767,6 +3177,13 @@ namespace UI
 
 					case evAdjustFan:
 						newValue = constrain<int>(newValue, 0, 100);
+						break;
+
+					case evAdjustActiveRPM:
+						{
+							auto spindle = GetSpindle(fieldBeingAdjusted.GetIParam());
+							newValue = constrain<int>(newValue, -1 * spindle->max, spindle->max);
+						}
 						break;
 
 					default:
@@ -2838,18 +3255,14 @@ namespace UI
 
 			case evExtrude:
 			case evRetract:
-				if (currentExtrudeAmountPress.IsValid() && currentExtrudeRatePress.IsValid())
 				{
-					SendExtrusion(ev == evRetract, currentExtrudeAmountPress.GetSParam(), currentExtrudeRatePress.GetSParam());
-				}
-				break;
-
-			case evExtrudeP:
-			case evRetractP:
-				if (currentExtrudeAmountPressP.IsValid() && currentExtrudeRatePressP.IsValid())
+					const ButtonPress amount = isLandscape ? currentExtrudeAmountPress : currentExtrudeAmountPressP;
+					const ButtonPress rate = isLandscape ? currentExtrudeRatePress : currentExtrudeRatePressP;
+					if (amount.IsValid() && rate.IsValid())
 					{
-					SendExtrusion(ev == evRetractP, currentExtrudeAmountPressP.GetSParam(), currentExtrudeRatePressP.GetSParam());
+						SendExtrusion(ev == evRetract, amount.GetSParam(), rate.GetSParam());
 					}
+				}
 				break;
 
 			case evBabyStepPopup:
@@ -2878,40 +3291,70 @@ namespace UI
 				PopupAreYouSure(ev, strings->confirmFactoryReset);
 				break;
 
-			case evSelectHead:
+			case evSelectBed:
 				{
-					int head = bp.GetIParam();
-					if (head == 0)
+					const auto slot = bedHeater.slot;
+					if (slot >= MaxHeaters)
 					{
-						if (heaterStatus[0] == 2)			// if bed is active
+						break;
+					}
+					if (heaterStatus[slot] == HeaterStatus::active)			// if bed is active
 						{
 							SerialIo::SendString("M144\n");
 						}
 						else
 						{
-							SerialIo::SendString("M140 S");
-							SerialIo::SendInt(activeTemps[0]->GetValue());
+						SerialIo::SendString("M140 P");
+						SerialIo::SendInt(bedHeater.index);
+						SerialIo::SendString(" S");
+						SerialIo::SendInt(activeTemps[slot]->GetValue());
+						SerialIo::SendChar('\n');
+					}
+				}
+				break;
+
+			case evSelectChamber:
+				{
+					const auto slot = chamberHeater.slot;
+					if (slot >= MaxHeaters)
+					{
+						break;
+					}
+					if (heaterStatus[slot] == HeaterStatus::active)			// if chamber is active
+					{
+						SerialIo::SendString("M141 P");
+						SerialIo::SendInt(chamberHeater.index);
+						SerialIo::SendString(" S-273.15\n");
+					}
+					else
+					{
+						SerialIo::SendString("M141 P");
+						SerialIo::SendInt(chamberHeater.index);
+						SerialIo::SendString(" S");
+						SerialIo::SendInt(activeTemps[slot]->GetValue());
 							SerialIo::SendChar('\n');
 						}
 					}
-					else if (head < (int)MaxHeaters)
+				break;
+
+			case evSelectHead:
 					{
+						int head = bp.GetIParam();
 						// pressing a evSeelctHead button in the middle of active printing is almost always accidental (and fatal to the print job)
 						if (GetStatus() != PrinterStatus::printing && GetStatus() != PrinterStatus::simulating)
 						{
-							if (heaterStatus[head] == 2)		// if head is active
+							if (head == currentTool)		// if head is active
 							{
 								SerialIo::SendString("T-1\n");
 							}
 							else
 							{
 								SerialIo::SendChar('T');
-								SerialIo::SendInt(head - (isLandscape ? 1 : 0));
+								SerialIo::SendInt(head);
 								SerialIo::SendChar('\n');
 							}
 						}
 					}
-				}
 				break;
 
 			case evFile:
@@ -3012,6 +3455,12 @@ namespace UI
 			case evReset:
 				SerialIo::SendString(bp.GetSParam());
 				SerialIo::SendChar('\n');
+				break;
+
+			case evHomeAxis:
+				SerialIo::SendString("G28 ");
+				SerialIo::SendString(bp.GetSParam());
+				SerialIo::SendString("0\n");
 				break;
 
 			case evScrollFiles:
@@ -3273,7 +3722,6 @@ namespace UI
 			case evExtrusionFactor:
 			case evAdjustFan:
 			case evPAdjustExtrusionPercent:
-			case evPAdjustSpindleRPM:
 				static_cast<IntegerButton*>(fieldBeingAdjusted.GetButton())->SetValue(oldIntValue);
 				mgr.ClearPopup();
 				StopAdjusting();
@@ -3281,10 +3729,15 @@ namespace UI
 
 			case evAdjustActiveTemp:
 			case evAdjustStandbyTemp:
+			case evAdjustActiveRPM:
 			case evSetBaudRate:
 			case evSetVolume:
 			case evSetInfoTimeout:
 			case evSetColours:
+				if (fieldBeingAdjusted.GetEvent() == evAdjustActiveRPM && !isLandscape)
+				{
+					static_cast<IntegerButton*>(fieldBeingAdjusted.GetButton())->SetValue(oldIntValue);
+				}
 				mgr.ClearPopup();
 				StopAdjusting();
 				break;
@@ -3430,7 +3883,7 @@ namespace UI
 	// Return true if this should be called again for the next button.
 	bool UpdateMacroShortList(unsigned int buttonIndex, const char * array null fileName)
 	{
-		if (buttonIndex >= ARRAY_SIZE(controlPageMacroButtons) || controlPageMacroButtons[buttonIndex] == nullptr || numTools == 0 || numTools > MaxHeaters - 2)
+		if (buttonIndex >= ARRAY_SIZE(controlPageMacroButtons) || controlPageMacroButtons[buttonIndex] == nullptr || numToolColsUsed == 0 || numToolColsUsed >= MaxHeaters - 2)
 		{
 			return false;
 		}
@@ -3462,7 +3915,7 @@ namespace UI
 
 	void AdjustControlPageMacroButtons()
 	{
-		const unsigned int n = max<unsigned int>(numHeaters, numTools + 1);
+		const unsigned int n = numToolColsUsed;
 
 		if (n != numHeaterAndToolColumns)
 		{
@@ -3495,45 +3948,332 @@ namespace UI
 		}
 	}
 
-	void SetNumHeaters(size_t nHeaters)
+	void AllToolsSeen()
 	{
-		if (nHeaters > MaxHeaters)
+		size_t slot = 0;
+		size_t slotP = 0;
+		bedHeater.slot = MaxHeaters;
+		bedHeater.slotP = MaxPendantTools;
+		if (bedHeater.heater > -1)
 		{
-			nHeaters = MaxHeaters;
+			bedHeater.slot = slot;
+			mgr.Show(toolButtons[slot], true);
+			mgr.Show(currentTemps[slot], true);
+			mgr.Show(activeTemps[slot], true);
+			mgr.Show(standbyTemps[slot], true);
+			toolButtons[slot]->SetEvent(evSelectBed, bedHeater.index);
+			toolButtons[slot]->SetIcon(IconBed);
+			toolButtons[slot]->SetIntVal(bedHeater.index);	// Remove the line below if we want to show the bed number
+			toolButtons[slot]->SetPrintText(false);
+			activeTemps[slot]->SetEvent(evAdjustActiveTemp, bedHeater.heater);
+			standbyTemps[slot]->SetEvent(standbyTemps[slot]->GetEvent(), bedHeater.heater);
+			++slot;
 		}
+		for (auto tool = tools; tool != nullptr; tool = tool->next)
+		{
+			tool->slot = slot;
+			const bool hasHeater = tool->heater > -1;
+			const bool hasSpindle = tool->spindle != nullptr;
+			if (slot < MaxHeaters)
+			{
+				toolButtons[slot]->SetEvent(evSelectHead, tool->index);
+				toolButtons[slot]->SetIntVal(tool->index);
+				toolButtons[slot]->SetPrintText(true);
+				toolButtons[slot]->SetIcon(hasSpindle ? IconSpindle : IconNozzle);
+				mgr.Show(toolButtons[slot], true);
+				mgr.Show(currentTemps[slot], hasHeater || hasSpindle);
+				mgr.Show(activeTemps[slot], hasHeater || hasSpindle);
+				mgr.Show(standbyTemps[slot], hasHeater);
+				mgr.Show(extrusionFactors[slot], hasHeater);
 
-		while (nHeaters < numHeaters)
-		{
-			--numHeaters;
-			mgr.Show(currentTemps[numHeaters], false);
-			mgr.Show(activeTemps[numHeaters], false);
-			mgr.Show(standbyTemps[numHeaters], false);
-			mgr.Show(extrusionFactors[numHeaters - 1], false);
+				// Set tool number for change event
+				activeTemps[slot]->SetEvent(evAdjustActiveTemp, tool->index);
+				standbyTemps[slot]->SetEvent(standbyTemps[slot]->GetEvent(), tool->index);
+				++slot;
+			}
+			tool->slotP = slotP;
+			if (slotP < MaxPendantTools)
+			{
+				toolSelectButtons[slotP]->SetEvent(evSelectHead, tool->index);
+				toolSelectButtons[slotP]->SetIntVal(tool->index);
+				toolSelectButtons[slotP]->SetPrintText(true);
+
+				toolButtonsPJob[slotP]->SetEvent(evSelectHead, tool->index);
+				toolButtonsPJob[slotP]->SetIntVal(tool->index);
+				toolButtonsPJob[slotP]->SetPrintText(true);
+
+				// Special handling for T10 (Probe)
+				if (tool->index == 10)
+				{
+					toolSelectButtons[slotP]->SetText(strings->probe);
+					toolSelectButtons[slotP]->SetDrawIcon(false);
+
+					toolButtonsPJob[slotP]->SetText(strings->probe);
+					toolButtonsPJob[slotP]->SetDrawIcon(false);
+				}
+				else
+				{
+					toolSelectButtons[slotP]->SetText(nullptr);
+					toolSelectButtons[slotP]->SetIcon(hasSpindle ? IconSpindle : IconNozzle);
+					toolSelectButtons[slotP]->SetDrawIcon(true);
+
+					toolButtonsPJob[slotP]->SetText(nullptr);
+					toolButtonsPJob[slotP]->SetIcon(hasSpindle ? IconSpindle : IconNozzle);
+					toolButtonsPJob[slotP]->SetDrawIcon(true);
+				}
+				mgr.Show(toolSelectButtons[slotP], true);
+
+				mgr.Show(toolButtonsPJob[slotP], hasHeater || hasSpindle);
+				mgr.Show(currentTempsPJob[slotP], hasHeater || hasSpindle);
+				mgr.Show(activeTempsPJob[slotP], hasHeater || hasSpindle);
+				mgr.Show(standbyTempsPJob[slotP], hasHeater);
+
+				// Set tool/spindle number for change event
+				const event_t evForActive = hasHeater ? evAdjustActiveTemp : hasSpindle ? evAdjustActiveRPM : evNull;
+				const int evActiveParam = hasSpindle ? tool->spindle->index : tool->index;
+
+				activeTempsPJob[slotP]->SetEvent(evForActive, evActiveParam);
+				standbyTempsPJob[slotP]->SetEvent(standbyTempPJog->GetEvent(), tool->index);
+				++slotP;
+			}
 		}
-		while (numHeaters < nHeaters)
+		chamberHeater.slot = MaxHeaters;
+		if (slot < MaxHeaters && chamberHeater.heater > -1)
 		{
-			mgr.Show(currentTemps[numHeaters], true);
-			mgr.Show(activeTemps[numHeaters], true);
-			mgr.Show(standbyTemps[numHeaters], true);
-			mgr.Show(extrusionFactors[numHeaters - 1], true);
-			++numHeaters;
+			chamberHeater.slot = slot;
+			mgr.Show(toolButtons[slot], true);
+			mgr.Show(currentTemps[slot], true);
+			mgr.Show(activeTemps[slot], true);
+			mgr.Show(standbyTemps[slot], true);
+			toolButtons[slot]->SetEvent(evSelectChamber, chamberHeater.index);
+			toolButtons[slot]->SetIcon(IconChamber);
+			toolButtons[slot]->SetIntVal(chamberHeater.index);	// Remove the line below if we want to show the chamber number
+			toolButtons[slot]->SetPrintText(false);
+			activeTemps[slot]->SetEvent(evAdjustActiveTemp, chamberHeater.heater);
+			standbyTemps[slot]->SetEvent(standbyTemps[slot]->GetEvent(), chamberHeater.heater);
+			++slot;
+		}
+		chamberHeater.slotP = MaxPendantTools;
+		if (slotP < MaxPendantTools && chamberHeater.heater > -1)
+		{
+			chamberHeater.slotP = slotP;
+			mgr.Show(toolButtonsPJob[slotP], true);
+			mgr.Show(currentTempsPJob[slotP], true);
+			mgr.Show(activeTempsPJob[slotP], true);
+			mgr.Show(standbyTempsPJob[slotP], true);
+			toolButtonsPJob[slotP]->SetEvent(evSelectChamber, chamberHeater.index);
+			toolButtonsPJob[slotP]->SetIcon(IconChamber);
+			toolButtonsPJob[slotP]->SetIntVal(chamberHeater.index);	// Remove the line below if we want to show the chamber number
+			toolButtonsPJob[slotP]->SetPrintText(false);
+			activeTempsPJob[slotP]->SetEvent(evAdjustActiveTemp, chamberHeater.heater);
+			standbyTempsPJob[slotP]->SetEvent(standbyTempsPJob[slotP]->GetEvent(), chamberHeater.heater);
+			++slotP;
+		}
+		numToolColsUsed = slot;
+		for (size_t i = slot; i < MaxHeaters; ++i)
+		{
+			mgr.Show(toolButtons[i], false);
+			mgr.Show(currentTemps[i], false);
+			mgr.Show(activeTemps[i], false);
+			mgr.Show(standbyTemps[i], false);
+		}
+		for (size_t i = slotP; i < MaxPendantTools; ++i)
+		{
+			mgr.Show(toolSelectButtons[i], false);
+			mgr.Show(toolButtonsPJob[i], false);
+			mgr.Show(currentTempsPJob[i], false);
+			mgr.Show(activeTempsPJob[i], false);
+			mgr.Show(standbyTempsPJob[i], false);
 		}
 		AdjustControlPageMacroButtons();
 	}
 
-	void SetNumTools(unsigned int n)
+	void RemoveSpindle(size_t index, bool allFollowing)
 	{
-		numTools = n;
-		for (size_t i = 0; i < MaxHeaters; ++i)
+		for (auto s = spindles; s != nullptr; s = s->next)
 		{
-			mgr.Show(toolButtons[i], i <= n);				// tool button 0 is the bed, hence we use <= instead of < in the following
+			if (s->next == nullptr || s->next->index != index)
+			{
+				continue;
+			}
+			if (allFollowing)
+			{
+				for (auto toDelete = s->next; toDelete != nullptr; toDelete = s->next)
+				{
+					s->next = toDelete->next;
+					delete toDelete;
+				}
+			}
+			else
+			{
+				auto toDelete = s->next;
+				s->next = toDelete->next;
+				delete toDelete;
+			}
 		}
-		AdjustControlPageMacroButtons();
 	}
 
-	void SetBabystepOffset(float f)
+	void SetSpindleActive(size_t index, float active)
 	{
-		babystepOffsetField->SetValue(f);
+		auto spindle = GetSpindle(index, true);
+		spindle->active = active;
+		if (spindle->tool > -1)
+		{
+			auto tool = GetTool(spindle->tool);
+			if (tool != nullptr)
+			{
+				if (tool->slot < MaxHeaters)
+				{
+					UpdateField(activeTemps[tool->slot], (int)active);
+				}
+				if (tool->slotP < MaxPendantTools)
+				{
+					UpdateField(activeTempsPJob[tool->slotP], (int)active);
+				}
+				if (tool->index == currentTool)
+				{
+					UpdateField(activeTempPJog, (int)active);
+				}
+			}
+		}
+	}
+
+	void SetSpindleCurrent(size_t index, float current)
+	{
+		auto spindle = GetSpindle(index, true);
+		if (spindle->tool > -1)
+		{
+			auto tool = GetTool(spindle->tool);
+			if (tool != nullptr)
+			{
+				if (tool->slot < MaxHeaters)
+				{
+					currentTemps[tool->slot]->SetValue(current);
+				}
+				if (tool->slotP < MaxPendantTools)
+				{
+					currentTempsPJob[tool->slotP]->SetValue(current);
+				}
+				if (tool->index == currentTool)
+				{
+					currentTempPJog->SetValue(current);
+					UpdateField(pSpindleRPMButton, current);
+				}
+			}
+		}
+	}
+
+	void SetSpindleMax(size_t index, float max)
+	{
+		GetSpindle(index, true)->max = max;
+	}
+
+	void RemoveTool(size_t index, bool allFollowing)
+	{
+		for (auto s = tools; s != nullptr; s = s->next)
+		{
+			if (s->next == nullptr || s->next->index != index)
+			{
+				continue;
+			}
+			if (allFollowing)
+			{
+				for (auto toDelete = s->next; toDelete != nullptr; toDelete = s->next)
+				{
+					s->next = toDelete->next;
+					delete toDelete;
+				}
+			}
+			else
+			{
+				auto toDelete = s->next;
+				s->next = toDelete->next;
+				delete toDelete;
+			}
+		}
+	}
+
+	void UpdateToolStatus(size_t toolIndex, ToolStatus status)
+	{
+		auto tool = GetTool(toolIndex);
+		tool->status = status;
+		Colour c = (status == ToolStatus::standby) ? colours->standbyBackColour
+					: (status == ToolStatus::active) ? colours->activeBackColour
+					: colours->buttonImageBackColour;
+		if (tool->slot < MaxHeaters)
+		{
+			toolButtons[tool->slot]->SetColours(colours->buttonTextColour, c);
+		}
+		if (tool->slotP < MaxPendantTools)
+		{
+			toolSelectButtons[tool->slot]->SetColours(colours->buttonTextColour, c);
+			toolButtonsPJob[tool->slot]->SetColours(colours->buttonTextColour, c);
+		}
+	}
+
+	void SetToolExtruder(size_t toolIndex, int8_t extruder)
+	{
+		GetTool(toolIndex, true)->extruder = extruder;
+	}
+
+	void SetToolHeater(size_t toolIndex, int8_t heater)
+	{
+		GetTool(toolIndex, true)->heater = heater;
+	}
+
+	void SetSpindleTool(int8_t toolIndex, int8_t spindle)
+	{
+		auto sp = GetSpindle(spindle);
+		sp->tool = toolIndex;
+		if (toolIndex == -1)
+		{
+			for (auto tool = tools; tool != nullptr; tool = tool->next)
+			{
+				if (tool->spindle == sp)
+				{
+					tool->spindle = nullptr;
+				}
+			}
+		}
+		else
+		{
+			GetTool(toolIndex, true)->spindle = sp;
+		}
+	}
+
+	void SetBabystepOffset(size_t index, float f)
+	{
+		if (index < MaxTotalAxes)
+		{
+			axes[index].SetBabystep(f);
+			if (axes[index].IsLetter('Z'))
+			{
+				babystepOffsetField->SetValue(f);
+			}
+		}
+	}
+
+	void SetAxisLetter(size_t index, char l)
+	{
+		if (index < MaxTotalAxes)
+		{
+			axes[index].SetLetter(l);
+		}
+	}
+
+	void SetAxisVisible(size_t index, bool v)
+	{
+		if (index < MaxTotalAxes)
+		{
+			axes[index].SetVisible(v);
+		}
+	}
+
+	void SetBedOrChamberHeater(int8_t heaterNumber, uint8_t heaterIndex, bool bed)
+	{
+		BedOrChamber* h = (bed) ? &bedHeater : &chamberHeater;
+		h->heater = heaterNumber;
+		h->index = heaterIndex;
 	}
 }
 
