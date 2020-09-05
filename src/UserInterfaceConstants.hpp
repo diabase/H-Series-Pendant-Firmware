@@ -77,7 +77,7 @@ const unsigned int MaxHeaters = 7;
 #define MaxDisplayableAxes (6)
 #define MaxDisplayableAxesP (5)
 #define MaxAxesPendant (9)
-#define MaxPendantTools (6)
+constexpr size_t MaxPendantTools = 6;
 
 const PixelNumber margin = 4;
 const PixelNumber textButtonMargin = 1;

@@ -143,71 +143,62 @@ uint32_t infoTimeout = DefaultInfoTimeout;				// info timeout in seconds, 0 mean
 uint32_t whenAlertReceived;
 bool displayingResponse = false;						// true if displaying a response
 
-class IndexedElement
+enum Workplaces
 {
-public:
-	IndexedElement(uint8_t index) : index(index) { };
-protected:
-	uint8_t index;
+	G54,
+	G55,
+	G56,
+	G57,
+	G58,
+	G59,
+	G59_1,
+	G59_2,
+	G59_3,
+	MaxTotalWorkplaces
 };
 
-class IndexedElementWithHeater : IndexedElement
+struct Axis
 {
-public:
-	IndexedElementWithHeater(uint8_t index) : IndexedElement(index), heater(-1) {};
-	IndexedElementWithHeater(uint8_t index, int8_t heater) : IndexedElement(index), heater(heater) {};
-protected:
-	int8_t heater;
-};
-
-class Axis
-{
-public:
-	Axis(char axisLetter) : babystep(0.0f), letter{axisLetter, '\0'}, homed(false), visible(false), slot(MaxTotalAxes), slotP(MaxTotalAxes) {};
-
-	float GetBabystep() const { return babystep; }
-	void SetBabystep(const float babystep) { this->babystep = babystep; }
-
-	const char * GetLetter() const { return letter; }
-	bool IsLetter(char letter) const { return this->letter[0] == letter; }
-	void SetLetter(const char letter) { this->letter[0] = letter; }
-
-	bool IsHomed() const { return homed; }
-	void SetHomed(const bool homed) { this->homed = homed; }
-
-	bool IsVisible() const { return visible; }
-	void SetVisible(const bool visible) { this->visible = visible; }
-
-	size_t GetSlot() const { return slot; }
-	void SetSlot(const size_t slot) { this->slot = min(slot, MaxTotalAxes); }
-
-	size_t GetSlotP() const { return slotP; }
-	void SetSlotP(const size_t slotP) { this->slotP = min(slotP, MaxTotalAxes); }
-private:
 	float babystep;
 	char letter[2];
+	float workplaceOffsets[9];
 	uint16_t homed : 1,
 		visible : 1,
 		slot : 6,
 		slotP : 6;
 };
 
+static Axis CreateAxis(char letter)
+{
+	return (Axis)
+			{
+				0.0f,							// babystep
+				{letter, '\0'},					// letter
+				{0, 0, 0, 0, 0, 0, 0, 0, 0},	// workplaceOffsets
+				false,							// homed
+				false,							// visible
+				MaxTotalAxes,					// slot
+				MaxTotalAxes					// slotP
+			};
+}
+
 static Axis axes[] = {
-	Axis('X'),
-	Axis('Y'),
-	Axis('Z'),
-	Axis('U'),
-	Axis('V'),
-	Axis('W'),
-	Axis('A'),
-	Axis('B'),
-	Axis('C'),
-	Axis('D'),
+		CreateAxis('X'),
+		CreateAxis('Y'),
+		CreateAxis('Z'),
+		CreateAxis('U'),
+		CreateAxis('V'),
+		CreateAxis('W'),
+		CreateAxis('A'),
+		CreateAxis('B'),
+		CreateAxis('C'),
+		CreateAxis('D'),
 };
 
 static bool allAxesHomed = false;
 
-struct Spindle {
+struct Spindle
+{
 	// Index within configured spindles
 	uint8_t index = 0;
 	float active = 0.0;
@@ -218,22 +209,25 @@ struct Spindle {
 
 static Spindle* spindles;
 
-struct Tool {
+struct Tool
+{
 	// tool number
 	uint8_t index = 0;
 	int8_t heater = -1;				// only look at the first heater as we only display one
 	int8_t extruder = -1;			// only look at the first extruder as we only display one
 	Spindle* spindle = nullptr;		// only look at the first spindle as we only display one
+	float offsets[MaxTotalAxes];
 	ToolStatus status = ToolStatus::off;
-	uint8_t slot;
-	uint8_t slotP;
-	Tool* next;
+	uint8_t slot = MaxHeaters;
+	uint8_t slotP = MaxPendantTools;
+	Tool* next = nullptr;
 };
 
 static Tool* tools;
 static int32_t currentTool = -1;
 
-static struct BedOrChamber {
+struct BedOrChamber
+{
 	// Index within configured heaters
 	uint8_t index = 0;
 	// Id of heater
@@ -1839,7 +1833,7 @@ namespace UI
 	{
 		if (axis < MaxTotalAxes)
 		{
-			size_t slot = axes[axis].GetSlot();
+			size_t slot = axes[axis].slot;
 			if (slot < MaxDisplayableAxes)
 			{
 				if (controlTabAxisPos[slot] != nullptr)
@@ -1855,7 +1849,7 @@ namespace UI
 					movePopupAxisPos[slot]->SetValue(fval);
 				}
 			}
-			size_t slotP = axes[axis].GetSlotP();
+			size_t slotP = axes[axis].slotP;
 			if (slotP < MaxDisplayableAxesP)
 			{
 				jogTabAxisPos[slotP]->SetValue(fval);
@@ -1864,9 +1858,10 @@ namespace UI
 		}
 	}
 
-	Spindle* GetSpindle(size_t index, bool create = false)
+	template<class T>
+	T* GetOrCreate(T*& start, size_t index, bool create)
 	{
-		Spindle* ret = spindles;
+		T* ret = start;
 		for (; ret != nullptr; ret = ret->next)
 		{
 			if (ret->index == index)
@@ -1878,18 +1873,17 @@ namespace UI
 		// Not found, create new
 		if (ret == nullptr && create)
 		{
-			ret = new Spindle;
+			ret = new T;
 			ret->index = index;
-
-			if (spindles == nullptr || spindles->index > index)
+			if (start == nullptr || start->index > index)
 			{
-				ret->next = spindles;
-				spindles = ret;
+				ret->next = start;
+				start = ret;
 			}
 			else
 			{
-				// Inset it at he correct spot
-				auto current = spindles;
+				// Insert it at the correct spot
+				auto current = start;
 				while (current->next != nullptr && current->next->index < index)
 				{
 					current = current->next;
@@ -1901,42 +1895,14 @@ namespace UI
 		return ret;
 	}
 
-	Tool* GetTool(size_t toolNumber, bool create = false)
+	Spindle* GetOrCreateSpindle(size_t index, bool create = false)
 	{
+		return GetOrCreate(spindles, index, create);
+	}
 
-		auto ret = tools;
-		for (; ret != nullptr; ret = ret->next)
-		{
-			if (ret->index == toolNumber)
-			{
-				break;
-			}
-		}
-
-		// Not found, create new
-		if (ret == nullptr && create)
-		{
-			ret = new Tool;
-			ret->index = toolNumber;
-
-			if (tools == nullptr || tools->index > toolNumber)
-			{
-				ret->next = tools;
-				tools = ret;
-			}
-			else
-			{
-				// Insert it at the correct spot
-				auto current = tools;
-				while (current->next != nullptr && current->next->index < toolNumber)
-				{
-					current = current->next;
-				}
-				ret->next = current->next;
-				current->next = ret;
-			}
-		}
-		return ret;
+	Tool* GetOrCreateTool(size_t index, bool create = false)
+	{
+		return GetOrCreate(tools, index, create);
 	}
 
 	Tool* GetToolForExtruder(size_t extruder)
@@ -2036,7 +2002,7 @@ namespace UI
 	{
 		if (ival == currentTool)
 		{
-//			return;
+			return;
 		}
 		currentTool = ival;
 		if (currentTool < 0)
@@ -2049,8 +2015,7 @@ namespace UI
 		}
 		else
 		{
-			// FIXME: this does not work initially because of the return up top but removing it does unecessary things
-			auto tool = GetTool(currentTool);
+			auto tool = GetOrCreateTool(currentTool);
 			if (tool != nullptr)
 			{
 				const bool hasHeater = tool->heater > -1;
@@ -2325,7 +2290,7 @@ namespace UI
 
 					case evAdjustActiveRPM:
 						{
-							auto spindle = GetSpindle(fieldBeingAdjusted.GetIParam());
+							auto spindle = GetOrCreateSpindle(fieldBeingAdjusted.GetIParam());
 							static const int spindleRpmMultiplier = 100;
 							static const int maxSpindleRpm = spindle->max;
 							newValue = constrain<int>((newValue - change) + (change * spindleRpmMultiplier), -maxSpindleRpm, maxSpindleRpm);
@@ -2474,20 +2439,20 @@ namespace UI
 			for (size_t i = 0; i < MaxTotalAxes; ++i)
 			{
 				Axis& axis = axes[i];
-				axis.SetSlot(MaxTotalAxes);
-				axis.SetSlotP(MaxTotalAxes);
-				if (!axis.IsVisible())
+				axis.slot = MaxTotalAxes;
+				axis.slotP = MaxTotalAxes;
+				if (!axis.visible)
 				{
 					continue;
 				}
-				const char * letter = axis.GetLetter();
+				const char * letter = axis.letter;
 				if (numDisplayedAxes < MaxDisplayableAxes)
 				{
-					axis.SetSlot(numDisplayedAxes);
+					axis.slot = numDisplayedAxes;
 					++numDisplayedAxes;
 
 					// Update axis letter everywhere we display it
-					const uint8_t slot = axis.GetSlot();
+					const uint8_t slot = axis.slot;
 					controlTabAxisPos	[slot]->SetLabel(letter);
 					moveAxisRows		[slot]->SetValue(letter);
 					printTabAxisPos		[slot]->SetLabel(letter);
@@ -2502,7 +2467,7 @@ namespace UI
 				}
 				if (IsVisibleAxisPendant(letter))
 				{
-					axis.SetSlotP(slotP);
+					axis.slotP = slotP;
 					jobTabAxisPos[slotP]->SetLabel(letter);
 					ShowAxisP(slotP, slotP < MaxTotalAxes);
 					++slotP;
@@ -2528,9 +2493,9 @@ namespace UI
 		{
 			return;
 		}
-		axes[axis].SetHomed(isHomed);
-		const size_t slot = axes[axis].GetSlot();
-		const size_t slotP = axes[axis].GetSlotP();
+		axes[axis].homed = isHomed;
+		const size_t slot = axes[axis].slot;
+		const size_t slotP = axes[axis].slotP;
 		if (slot < MaxDisplayableAxes)
 		{
 			homeButtons[slot]->SetColours(colours->buttonTextColour, (isHomed) ? colours->homedButtonBackColour : colours->notHomedButtonBackColour);
@@ -2543,7 +2508,7 @@ namespace UI
 		bool allHomed = true;
 		for (size_t i = 0; i < MaxTotalAxes; ++i)
 		{
-			if (axes[i].IsVisible() && !axes[i].IsHomed())
+			if (axes[i].visible && !axes[i].homed)
 			{
 				allHomed = false;
 				break;
@@ -2578,13 +2543,12 @@ namespace UI
 		UpdateField(fanSpeed, rpm);
 	}
 
-	// Update an active temperature
-	void UpdateActiveTemperature(size_t index, int ival)
+	void UpdateTemperature(size_t index, int ival, IntegerButton** fields, IntegerButton* fieldPJog, IntegerButton** fieldsPJob)
 	{
 		const int heaterSlot = GetHeaterSlot(index);
 		if (heaterSlot >= 0)
 		{
-			UpdateField(activeTemps[heaterSlot], ival);
+			UpdateField(fields[heaterSlot], ival);
 		}
 
 		auto tool = GetToolForHeater(index);
@@ -2592,11 +2556,11 @@ namespace UI
 		{
 			if (tool->index == currentTool)
 			{
-				UpdateField(activeTempPJog, ival);
+				UpdateField(fieldPJog, ival);
 			}
 			if (tool->slotP < MaxPendantTools)
 			{
-				UpdateField(activeTempsPJob[tool->slotP], ival);
+				UpdateField(fieldsPJob[tool->slotP], ival);
 			}
 		}
 		else if ((int)index == bedHeater.heater && bedHeater.slotP < MaxPendantTools)
@@ -2609,35 +2573,16 @@ namespace UI
 		}
 	}
 
+	// Update an active temperature
+	void UpdateActiveTemperature(size_t index, int ival)
+	{
+		UpdateTemperature(index, ival, activeTemps, activeTempPJog, activeTempsPJob);
+	}
+
 	// Update a standby temperature
 	void UpdateStandbyTemperature(size_t index, int ival)
 	{
-		const int heaterSlot = GetHeaterSlot(index);
-		if (heaterSlot >= 0)
-		{
-			UpdateField(standbyTemps[heaterSlot], ival);
-		}
-
-		auto tool = GetToolForHeater(index);
-		if (tool != nullptr)
-		{
-			if (tool->index == currentTool)
-			{
-				UpdateField(standbyTempPJog, ival);
-			}
-			if (tool->slotP < MaxPendantTools)
-			{
-				UpdateField(standbyTempsPJob[tool->slotP], ival);
-			}
-		}
-		else if ((int)index == bedHeater.heater && bedHeater.slotP < MaxPendantTools)
-		{
-			UpdateField(standbyTempsPJob[bedHeater.slotP], ival);
-		}
-		else if ((int)index == chamberHeater.heater && chamberHeater.slotP < MaxPendantTools)
-		{
-			UpdateField(standbyTempsPJob[chamberHeater.slotP], ival);
-		}
+		UpdateTemperature(index, ival, standbyTemps, standbyTempPJog, standbyTempsPJob);
 	}
 
 	// Update an extrusion factor
@@ -3109,7 +3054,7 @@ namespace UI
 
 					case evAdjustActiveRPM:
 						{
-							auto spindle = GetSpindle(fieldBeingAdjusted.GetIParam());
+							auto spindle = GetOrCreateSpindle(fieldBeingAdjusted.GetIParam());
 							if (val == 0)
 							{
 								SerialIo::SendString("M5 P");
@@ -3181,8 +3126,8 @@ namespace UI
 
 					case evAdjustActiveRPM:
 						{
-							auto spindle = GetSpindle(fieldBeingAdjusted.GetIParam());
-							newValue = constrain<int>(newValue, -1 * spindle->max, spindle->max);
+							auto spindle = GetOrCreateSpindle(fieldBeingAdjusted.GetIParam());
+							newValue = constrain<int>(newValue, -spindle->max, spindle->max);
 						}
 						break;
 
@@ -3299,11 +3244,11 @@ namespace UI
 						break;
 					}
 					if (heaterStatus[slot] == HeaterStatus::active)			// if bed is active
-						{
-							SerialIo::SendString("M144\n");
-						}
-						else
-						{
+					{
+						SerialIo::SendString("M144\n");
+					}
+					else
+					{
 						SerialIo::SendString("M140 P");
 						SerialIo::SendInt(bedHeater.index);
 						SerialIo::SendString(" S");
@@ -3320,21 +3265,19 @@ namespace UI
 					{
 						break;
 					}
+					SerialIo::SendString("M141 P");
+					SerialIo::SendInt(chamberHeater.index);
+					SerialIo::SendString(" S");
 					if (heaterStatus[slot] == HeaterStatus::active)			// if chamber is active
 					{
-						SerialIo::SendString("M141 P");
-						SerialIo::SendInt(chamberHeater.index);
 						SerialIo::SendString(" S-273.15\n");
 					}
 					else
 					{
-						SerialIo::SendString("M141 P");
-						SerialIo::SendInt(chamberHeater.index);
-						SerialIo::SendString(" S");
 						SerialIo::SendInt(activeTemps[slot]->GetValue());
-							SerialIo::SendChar('\n');
-						}
 					}
+					SerialIo::SendChar('\n');
+				}
 				break;
 
 			case evSelectHead:
@@ -3968,6 +3911,19 @@ namespace UI
 			activeTemps[slot]->SetEvent(evAdjustActiveTemp, bedHeater.heater);
 			standbyTemps[slot]->SetEvent(standbyTemps[slot]->GetEvent(), bedHeater.heater);
 			++slot;
+
+			bedHeater.slotP = slotP;
+			mgr.Show(toolButtonsPJob[slotP], true);
+			mgr.Show(currentTempsPJob[slotP], true);
+			mgr.Show(activeTempsPJob[slotP], true);
+			mgr.Show(standbyTempsPJob[slotP], true);
+			toolButtonsPJob[slotP]->SetEvent(evSelectChamber, bedHeater.index);
+			toolButtonsPJob[slotP]->SetIcon(IconChamber);
+			toolButtonsPJob[slotP]->SetIntVal(bedHeater.index);	// Remove the line below if we want to show the bed number
+			toolButtonsPJob[slotP]->SetPrintText(false);
+			activeTempsPJob[slotP]->SetEvent(evAdjustActiveTemp, bedHeater.heater);
+			standbyTempsPJob[slotP]->SetEvent(standbyTempsPJob[slotP]->GetEvent(), bedHeater.heater);
+			++slotP;
 		}
 		for (auto tool = tools; tool != nullptr; tool = tool->next)
 		{
@@ -4026,6 +3982,7 @@ namespace UI
 				}
 				mgr.Show(toolSelectButtons[slotP], true);
 
+				// FIXME: this leads to empty rows if a tool has neither heater nor spindle
 				mgr.Show(toolButtonsPJob[slotP], hasHeater || hasSpindle);
 				mgr.Show(currentTempsPJob[slotP], hasHeater || hasSpindle);
 				mgr.Show(activeTempsPJob[slotP], hasHeater || hasSpindle);
@@ -4091,38 +4048,70 @@ namespace UI
 		AdjustControlPageMacroButtons();
 	}
 
-	void RemoveSpindle(size_t index, bool allFollowing)
+	template<class T>
+	void Remove(T*& start, size_t index, bool allFollowing)
 	{
-		for (auto s = spindles; s != nullptr; s = s->next)
+		// TODO: Unify if-else-block
+		if (start != nullptr && start->index == index)
 		{
-			if (s->next == nullptr || s->next->index != index)
-			{
-				continue;
-			}
 			if (allFollowing)
 			{
-				for (auto toDelete = s->next; toDelete != nullptr; toDelete = s->next)
+				for (auto toDelete = start; toDelete != nullptr; toDelete = start->next)
 				{
-					s->next = toDelete->next;
+					start = toDelete->next;
 					delete toDelete;
 				}
 			}
 			else
 			{
-				auto toDelete = s->next;
-				s->next = toDelete->next;
+				auto toDelete = start;
+				start = toDelete->next;
 				delete toDelete;
+			}
+		}
+		else
+		{
+			for (auto s = start; s != nullptr; s = s->next)
+			{
+				if (s->next == nullptr || s->next->index != index)
+				{
+					continue;
+				}
+				if (allFollowing)
+				{
+					for (auto toDelete = s->next; toDelete != nullptr; toDelete = s->next)
+					{
+						s->next = toDelete->next;
+						delete toDelete;
+					}
+				}
+				else
+				{
+					auto toDelete = s->next;
+					s->next = toDelete->next;
+					delete toDelete;
+				}
 			}
 		}
 	}
 
+	void RemoveSpindle(size_t index, bool allFollowing)
+	{
+		Remove(spindles, index, allFollowing);
+	}
+
+	void RemoveTool(size_t index, bool allFollowing)
+	{
+		Remove(tools, index, allFollowing);
+	}
+
 	void SetSpindleActive(size_t index, float active)
 	{
-		auto spindle = GetSpindle(index, true);
+		auto spindle = GetOrCreateSpindle(index, true);
 		spindle->active = active;
 		if (spindle->tool > -1)
 		{
-			auto tool = GetTool(spindle->tool);
+			auto tool = GetOrCreateTool(spindle->tool);
 			if (tool != nullptr)
 			{
 				if (tool->slot < MaxHeaters)
@@ -4143,10 +4132,10 @@ namespace UI
 
 	void SetSpindleCurrent(size_t index, float current)
 	{
-		auto spindle = GetSpindle(index, true);
+		auto spindle = GetOrCreateSpindle(index, true);
 		if (spindle->tool > -1)
 		{
-			auto tool = GetTool(spindle->tool);
+			auto tool = GetOrCreateTool(spindle->tool);
 			if (tool != nullptr)
 			{
 				if (tool->slot < MaxHeaters)
@@ -4168,37 +4157,12 @@ namespace UI
 
 	void SetSpindleMax(size_t index, float max)
 	{
-		GetSpindle(index, true)->max = max;
-	}
-
-	void RemoveTool(size_t index, bool allFollowing)
-	{
-		for (auto s = tools; s != nullptr; s = s->next)
-		{
-			if (s->next == nullptr || s->next->index != index)
-			{
-				continue;
-			}
-			if (allFollowing)
-			{
-				for (auto toDelete = s->next; toDelete != nullptr; toDelete = s->next)
-				{
-					s->next = toDelete->next;
-					delete toDelete;
-				}
-			}
-			else
-			{
-				auto toDelete = s->next;
-				s->next = toDelete->next;
-				delete toDelete;
-			}
-		}
+		GetOrCreateSpindle(index, true)->max = max;
 	}
 
 	void UpdateToolStatus(size_t toolIndex, ToolStatus status)
 	{
-		auto tool = GetTool(toolIndex);
+		auto tool = GetOrCreateTool(toolIndex);
 		tool->status = status;
 		Colour c = (status == ToolStatus::standby) ? colours->standbyBackColour
 					: (status == ToolStatus::active) ? colours->activeBackColour
@@ -4216,17 +4180,25 @@ namespace UI
 
 	void SetToolExtruder(size_t toolIndex, int8_t extruder)
 	{
-		GetTool(toolIndex, true)->extruder = extruder;
+		GetOrCreateTool(toolIndex, true)->extruder = extruder;
 	}
 
 	void SetToolHeater(size_t toolIndex, int8_t heater)
 	{
-		GetTool(toolIndex, true)->heater = heater;
+		GetOrCreateTool(toolIndex, true)->heater = heater;
 	}
 
-	void SetSpindleTool(int8_t toolIndex, int8_t spindle)
+	void SetToolOffset(size_t toolIndex, size_t axisIndex, float offset)
 	{
-		auto sp = GetSpindle(spindle);
+		if (axisIndex < MaxTotalAxes)
+		{
+			GetOrCreateTool(toolIndex, true)->offsets[axisIndex] = offset;
+		}
+	}
+
+	void SetSpindleTool(int8_t spindle, int8_t toolIndex)
+	{
+		auto sp = GetOrCreateSpindle(spindle, true);
 		sp->tool = toolIndex;
 		if (toolIndex == -1)
 		{
@@ -4240,7 +4212,7 @@ namespace UI
 		}
 		else
 		{
-			GetTool(toolIndex, true)->spindle = sp;
+			GetOrCreateTool(toolIndex, true)->spindle = sp;
 		}
 	}
 
@@ -4248,8 +4220,8 @@ namespace UI
 	{
 		if (index < MaxTotalAxes)
 		{
-			axes[index].SetBabystep(f);
-			if (axes[index].IsLetter('Z'))
+			axes[index].babystep = f;
+			if (axes[index].letter[0] == 'Z')
 			{
 				babystepOffsetField->SetValue(f);
 			}
@@ -4260,7 +4232,7 @@ namespace UI
 	{
 		if (index < MaxTotalAxes)
 		{
-			axes[index].SetLetter(l);
+			axes[index].letter[0] = l;
 		}
 	}
 
@@ -4268,7 +4240,15 @@ namespace UI
 	{
 		if (index < MaxTotalAxes)
 		{
-			axes[index].SetVisible(v);
+			axes[index].visible = v;
+		}
+	}
+
+	void SetAxisWorkplaceOffset(size_t axisIndex, size_t workplaceIndex, float offset)
+	{
+		if (axisIndex < MaxTotalAxes && workplaceIndex < Workplaces::MaxTotalWorkplaces)
+		{
+			axes[axisIndex].workplaceOffsets[workplaceIndex] = offset;
 		}
 	}
 
