@@ -22,6 +22,7 @@
 #include "Hardware/SysTick.hpp"
 #include "Strings.hpp"
 #include "Version.hpp"
+#include "ObjectModel.hpp"
 
 // Public fields
 TextField *fwVersionField, *userCommandField;
@@ -143,99 +144,9 @@ uint32_t infoTimeout = DefaultInfoTimeout;				// info timeout in seconds, 0 mean
 uint32_t whenAlertReceived;
 bool displayingResponse = false;						// true if displaying a response
 
-enum Workplaces
-{
-	G54,
-	G55,
-	G56,
-	G57,
-	G58,
-	G59,
-	G59_1,
-	G59_2,
-	G59_3,
-	MaxTotalWorkplaces
-};
-
-struct Axis
-{
-	float babystep;
-	char letter[2];
-	float workplaceOffsets[9];
-	uint16_t homed : 1,
-		visible : 1,
-		slot : 6,
-		slotP : 6;
-};
-
-static Axis CreateAxis(char letter)
-{
-	return (Axis)
-			{
-				0.0f,							// babystep
-				{letter, '\0'},					// letter
-				{0, 0, 0, 0, 0, 0, 0, 0, 0},	// workplaceOffsets
-				false,							// homed
-				false,							// visible
-				MaxTotalAxes,					// slot
-				MaxTotalAxes					// slotP
-			};
-}
-
-static Axis axes[] = {
-		CreateAxis('X'),
-		CreateAxis('Y'),
-		CreateAxis('Z'),
-		CreateAxis('U'),
-		CreateAxis('V'),
-		CreateAxis('W'),
-		CreateAxis('A'),
-		CreateAxis('B'),
-		CreateAxis('C'),
-		CreateAxis('D'),
-};
-
-static bool allAxesHomed = false;
-
-struct Spindle
-{
-	// Index within configured spindles
-	uint8_t index = 0;
-	float active = 0.0;
-	float max = 0.0;
-	int8_t tool = -1;
-	Spindle* next = nullptr;
-};
-
-static Spindle* spindles;
-
-struct Tool
-{
-	// tool number
-	uint8_t index = 0;
-	int8_t heater = -1;				// only look at the first heater as we only display one
-	int8_t extruder = -1;			// only look at the first extruder as we only display one
-	Spindle* spindle = nullptr;		// only look at the first spindle as we only display one
-	float offsets[MaxTotalAxes];
-	ToolStatus status = ToolStatus::off;
-	uint8_t slot = MaxHeaters;
-	uint8_t slotP = MaxPendantTools;
-	Tool* next = nullptr;
-};
-
-static Tool* tools;
 static int32_t currentTool = -1;
-
-struct BedOrChamber
-{
-	// Index within configured heaters
-	uint8_t index = 0;
-	// Id of heater
-	int8_t heater = -1;
-	// Slot for display on panel
-	uint8_t slot = MaxHeaters;
-	uint8_t slotP = MaxPendantTools;
-} bedHeater, chamberHeater;
+static OM::BedOrChamber bedHeater, chamberHeater;
+static bool allAxesHomed = false;
 
 #ifdef SUPPORT_ENCODER
 
@@ -1829,11 +1740,16 @@ namespace UI
 		jobTabAxisPos[slot]->Show(b);
 	}
 
-	void UpdateAxisPosition(size_t axis, float fval)
+	void UpdateAxisPosition(size_t axisIndex, float fval)
 	{
-		if (axis < MaxTotalAxes)
+		if (axisIndex < MaxTotalAxes)
 		{
-			size_t slot = axes[axis].slot;
+			auto axis = OM::GetAxis(axisIndex);
+			if (axis == nullptr)
+			{
+				return;
+			}
+			size_t slot = axis->slot;
 			if (slot < MaxDisplayableAxes)
 			{
 				if (controlTabAxisPos[slot] != nullptr)
@@ -1849,84 +1765,13 @@ namespace UI
 					movePopupAxisPos[slot]->SetValue(fval);
 				}
 			}
-			size_t slotP = axes[axis].slotP;
+			size_t slotP = axis->slotP;
 			if (slotP < MaxDisplayableAxesP)
 			{
 				jogTabAxisPos[slotP]->SetValue(fval);
 				jobTabAxisPos[slotP]->SetValue(fval);
 			}
 		}
-	}
-
-	template<class T>
-	T* GetOrCreate(T*& start, size_t index, bool create)
-	{
-		T* ret = start;
-		for (; ret != nullptr; ret = ret->next)
-		{
-			if (ret->index == index)
-			{
-				break;
-			}
-		}
-
-		// Not found, create new
-		if (ret == nullptr && create)
-		{
-			ret = new T;
-			ret->index = index;
-			if (start == nullptr || start->index > index)
-			{
-				ret->next = start;
-				start = ret;
-			}
-			else
-			{
-				// Insert it at the correct spot
-				auto current = start;
-				while (current->next != nullptr && current->next->index < index)
-				{
-					current = current->next;
-				}
-				ret->next = current->next;
-				current->next = ret;
-			}
-		}
-		return ret;
-	}
-
-	Spindle* GetOrCreateSpindle(size_t index, bool create = false)
-	{
-		return GetOrCreate(spindles, index, create);
-	}
-
-	Tool* GetOrCreateTool(size_t index, bool create = false)
-	{
-		return GetOrCreate(tools, index, create);
-	}
-
-	Tool* GetToolForExtruder(size_t extruder)
-	{
-		for (auto tool = tools; tool != nullptr; tool = tool->next)
-		{
-			if (tool->extruder == (int)extruder)
-			{
-				return tool;
-			}
-		}
-		return nullptr;
-	}
-
-	Tool* GetToolForHeater(size_t heater)
-	{
-		for (auto tool = tools; tool != nullptr; tool = tool->next)
-		{
-			if (tool->heater == (int)heater)
-			{
-				return tool;
-			}
-		}
-		return nullptr;
 	}
 
 	int GetHeaterSlot(size_t heater)
@@ -1939,7 +1784,7 @@ namespace UI
 		{
 			return chamberHeater.slot;
 		}
-		auto tool = GetToolForHeater(heater);
+		auto tool = OM::GetToolForHeater(heater);
 		return tool != nullptr ? tool->slot : -1;
 	}
 
@@ -1952,7 +1797,7 @@ namespace UI
 		}
 		currentTemps[heaterSlot]->SetValue(fval);
 
-		auto tool = GetToolForHeater(heater);
+		auto tool = OM::GetToolForHeater(heater);
 		if (tool != nullptr)
 		{
 			if (tool->index == currentTool)
@@ -1984,7 +1829,7 @@ namespace UI
 		{
 			currentTemps[heaterSlot]->SetColours((status == HeaterStatus::fault) ? colours->errorTextColour : colours->infoTextColour, c);
 		}
-		auto tool = GetToolForHeater(heater);
+		auto tool = OM::GetToolForHeater(heater);
 		if (tool != nullptr)
 		{
 			if (tool->index == currentTool)
@@ -2015,7 +1860,7 @@ namespace UI
 		}
 		else
 		{
-			auto tool = GetOrCreateTool(currentTool);
+			auto tool = OM::GetTool(currentTool);
 			if (tool != nullptr)
 			{
 				const bool hasHeater = tool->heater > -1;
@@ -2290,7 +2135,7 @@ namespace UI
 
 					case evAdjustActiveRPM:
 						{
-							auto spindle = GetOrCreateSpindle(fieldBeingAdjusted.GetIParam());
+							auto spindle = OM::GetSpindle(fieldBeingAdjusted.GetIParam());
 							static const int spindleRpmMultiplier = 100;
 							static const int maxSpindleRpm = spindle->max;
 							newValue = constrain<int>((newValue - change) + (change * spindleRpmMultiplier), -maxSpindleRpm, maxSpindleRpm);
@@ -2436,23 +2281,22 @@ namespace UI
 			FileManager::RefreshMacrosList();
 			numDisplayedAxes = 0;
 			size_t slotP = 0;
-			for (size_t i = 0; i < MaxTotalAxes; ++i)
+			OM::IterateAxes([&slotP](OM::Axis* axis)
 			{
-				Axis& axis = axes[i];
-				axis.slot = MaxTotalAxes;
-				axis.slotP = MaxTotalAxes;
-				if (!axis.visible)
+				axis->slot = MaxTotalAxes;
+				axis->slotP = MaxTotalAxes;
+				if (!axis->visible)
 				{
-					continue;
+					return;
 				}
-				const char * letter = axis.letter;
+				const char * letter = axis->letter;
 				if (numDisplayedAxes < MaxDisplayableAxes)
 				{
-					axis.slot = numDisplayedAxes;
+					axis->slot = numDisplayedAxes;
 					++numDisplayedAxes;
 
 					// Update axis letter everywhere we display it
-					const uint8_t slot = axis.slot;
+					const uint8_t slot = axis->slot;
 					controlTabAxisPos	[slot]->SetLabel(letter);
 					moveAxisRows		[slot]->SetValue(letter);
 					printTabAxisPos		[slot]->SetLabel(letter);
@@ -2467,12 +2311,12 @@ namespace UI
 				}
 				if (IsVisibleAxisPendant(letter))
 				{
-					axis.slotP = slotP;
+					axis->slotP = slotP;
 					jobTabAxisPos[slotP]->SetLabel(letter);
 					ShowAxisP(slotP, slotP < MaxTotalAxes);
 					++slotP;
 				}
-			}
+			});
 			// Hide axes possibly shown before
 			for (size_t i = numDisplayedAxes; i < MaxDisplayableAxes; ++i)
 			{
@@ -2487,15 +2331,12 @@ namespace UI
 	}
 
 	// Update the homed status of the specified axis. If the axis is -1 then it represents the "all homed" status.
-	void UpdateHomedStatus(size_t axis, bool isHomed)
+	void UpdateHomedStatus(size_t axisIndex, bool isHomed)
 	{
-		if (axis >= MaxTotalAxes)
-		{
-			return;
-		}
-		axes[axis].homed = isHomed;
-		const size_t slot = axes[axis].slot;
-		const size_t slotP = axes[axis].slotP;
+		auto axis = OM::GetOrCreateAxis(axisIndex);
+		axis->homed = isHomed;
+		const size_t slot = axis->slot;
+		const size_t slotP = axis->slotP;
 		if (slot < MaxDisplayableAxes)
 		{
 			homeButtons[slot]->SetColours(colours->buttonTextColour, (isHomed) ? colours->homedButtonBackColour : colours->notHomedButtonBackColour);
@@ -2506,14 +2347,14 @@ namespace UI
 		}
 
 		bool allHomed = true;
-		for (size_t i = 0; i < MaxTotalAxes; ++i)
-		{
-			if (axes[i].visible && !axes[i].homed)
+		OM::IterateAxesWhile([&allHomed](OM::Axis* axis) {
+			if (axis->visible && !axis->homed)
 			{
 				allHomed = false;
-				break;
+				return false;
 			}
-		}
+			return true;
+		});
 		if (allHomed != allAxesHomed)
 		{
 			allAxesHomed = allHomed;
@@ -2551,7 +2392,7 @@ namespace UI
 			UpdateField(fields[heaterSlot], ival);
 		}
 
-		auto tool = GetToolForHeater(index);
+		auto tool = OM::GetToolForHeater(index);
 		if (tool != nullptr)
 		{
 			if (tool->index == currentTool)
@@ -2588,7 +2429,7 @@ namespace UI
 	// Update an extrusion factor
 	void UpdateExtrusionFactor(size_t index, int ival)
 	{
-		auto tool = GetToolForExtruder(index);
+		auto tool = OM::GetToolForExtruder(index);
 		if (tool != nullptr)
 		{
 			if (tool->slot < MaxHeaters)
@@ -3054,7 +2895,7 @@ namespace UI
 
 					case evAdjustActiveRPM:
 						{
-							auto spindle = GetOrCreateSpindle(fieldBeingAdjusted.GetIParam());
+							auto spindle = OM::GetSpindle(fieldBeingAdjusted.GetIParam());
 							if (val == 0)
 							{
 								SerialIo::SendString("M5 P");
@@ -3126,7 +2967,7 @@ namespace UI
 
 					case evAdjustActiveRPM:
 						{
-							auto spindle = GetOrCreateSpindle(fieldBeingAdjusted.GetIParam());
+							auto spindle = OM::GetSpindle(fieldBeingAdjusted.GetIParam());
 							newValue = constrain<int>(newValue, -spindle->max, spindle->max);
 						}
 						break;
@@ -3925,7 +3766,7 @@ namespace UI
 			standbyTempsPJob[slotP]->SetEvent(standbyTempsPJob[slotP]->GetEvent(), bedHeater.heater);
 			++slotP;
 		}
-		for (auto tool = tools; tool != nullptr; tool = tool->next)
+		OM::IterateTools([&slot, &slotP](OM::Tool* tool)
 		{
 			tool->slot = slot;
 			const bool hasHeater = tool->heater > -1;
@@ -3996,7 +3837,7 @@ namespace UI
 				standbyTempsPJob[slotP]->SetEvent(standbyTempPJog->GetEvent(), tool->index);
 				++slotP;
 			}
-		}
+		});
 		chamberHeater.slot = MaxHeaters;
 		if (slot < MaxHeaters && chamberHeater.heater > -1)
 		{
@@ -4048,70 +3889,13 @@ namespace UI
 		AdjustControlPageMacroButtons();
 	}
 
-	template<class T>
-	void Remove(T*& start, size_t index, bool allFollowing)
-	{
-		// TODO: Unify if-else-block
-		if (start != nullptr && start->index == index)
-		{
-			if (allFollowing)
-			{
-				for (auto toDelete = start; toDelete != nullptr; toDelete = start->next)
-				{
-					start = toDelete->next;
-					delete toDelete;
-				}
-			}
-			else
-			{
-				auto toDelete = start;
-				start = toDelete->next;
-				delete toDelete;
-			}
-		}
-		else
-		{
-			for (auto s = start; s != nullptr; s = s->next)
-			{
-				if (s->next == nullptr || s->next->index != index)
-				{
-					continue;
-				}
-				if (allFollowing)
-				{
-					for (auto toDelete = s->next; toDelete != nullptr; toDelete = s->next)
-					{
-						s->next = toDelete->next;
-						delete toDelete;
-					}
-				}
-				else
-				{
-					auto toDelete = s->next;
-					s->next = toDelete->next;
-					delete toDelete;
-				}
-			}
-		}
-	}
-
-	void RemoveSpindle(size_t index, bool allFollowing)
-	{
-		Remove(spindles, index, allFollowing);
-	}
-
-	void RemoveTool(size_t index, bool allFollowing)
-	{
-		Remove(tools, index, allFollowing);
-	}
-
 	void SetSpindleActive(size_t index, float active)
 	{
-		auto spindle = GetOrCreateSpindle(index, true);
+		auto spindle = OM::GetOrCreateSpindle(index);
 		spindle->active = active;
 		if (spindle->tool > -1)
 		{
-			auto tool = GetOrCreateTool(spindle->tool);
+			auto tool = OM::GetTool(spindle->tool);
 			if (tool != nullptr)
 			{
 				if (tool->slot < MaxHeaters)
@@ -4132,10 +3916,10 @@ namespace UI
 
 	void SetSpindleCurrent(size_t index, float current)
 	{
-		auto spindle = GetOrCreateSpindle(index, true);
+		auto spindle = OM::GetOrCreateSpindle(index);
 		if (spindle->tool > -1)
 		{
-			auto tool = GetOrCreateTool(spindle->tool);
+			auto tool = OM::GetTool(spindle->tool);
 			if (tool != nullptr)
 			{
 				if (tool->slot < MaxHeaters)
@@ -4157,12 +3941,12 @@ namespace UI
 
 	void SetSpindleMax(size_t index, float max)
 	{
-		GetOrCreateSpindle(index, true)->max = max;
+		OM::GetOrCreateSpindle(index)->max = max;
 	}
 
 	void UpdateToolStatus(size_t toolIndex, ToolStatus status)
 	{
-		auto tool = GetOrCreateTool(toolIndex);
+		auto tool = OM::GetTool(toolIndex);
 		tool->status = status;
 		Colour c = (status == ToolStatus::standby) ? colours->standbyBackColour
 					: (status == ToolStatus::active) ? colours->activeBackColour
@@ -4180,39 +3964,38 @@ namespace UI
 
 	void SetToolExtruder(size_t toolIndex, int8_t extruder)
 	{
-		GetOrCreateTool(toolIndex, true)->extruder = extruder;
+		OM::GetOrCreateTool(toolIndex)->extruder = extruder;
 	}
 
 	void SetToolHeater(size_t toolIndex, int8_t heater)
 	{
-		GetOrCreateTool(toolIndex, true)->heater = heater;
+		OM::GetOrCreateTool(toolIndex)->heater = heater;
 	}
 
 	void SetToolOffset(size_t toolIndex, size_t axisIndex, float offset)
 	{
 		if (axisIndex < MaxTotalAxes)
 		{
-			GetOrCreateTool(toolIndex, true)->offsets[axisIndex] = offset;
+			OM::GetOrCreateTool(toolIndex)->offsets[axisIndex] = offset;
 		}
 	}
 
 	void SetSpindleTool(int8_t spindle, int8_t toolIndex)
 	{
-		auto sp = GetOrCreateSpindle(spindle, true);
+		auto sp = OM::GetOrCreateSpindle(spindle);
 		sp->tool = toolIndex;
 		if (toolIndex == -1)
 		{
-			for (auto tool = tools; tool != nullptr; tool = tool->next)
-			{
+			OM::IterateTools([&sp](OM::Tool* tool) {
 				if (tool->spindle == sp)
 				{
 					tool->spindle = nullptr;
 				}
-			}
+			});
 		}
 		else
 		{
-			GetOrCreateTool(toolIndex, true)->spindle = sp;
+			OM::GetOrCreateTool(toolIndex)->spindle = sp;
 		}
 	}
 
@@ -4220,8 +4003,9 @@ namespace UI
 	{
 		if (index < MaxTotalAxes)
 		{
-			axes[index].babystep = f;
-			if (axes[index].letter[0] == 'Z')
+			auto axis = OM::GetOrCreateAxis(index);
+			axis->babystep = f;
+			if (axis->letter[0] == 'Z')
 			{
 				babystepOffsetField->SetValue(f);
 			}
@@ -4232,7 +4016,7 @@ namespace UI
 	{
 		if (index < MaxTotalAxes)
 		{
-			axes[index].letter[0] = l;
+			OM::GetOrCreateAxis(index)->letter[0] = l;
 		}
 	}
 
@@ -4240,21 +4024,21 @@ namespace UI
 	{
 		if (index < MaxTotalAxes)
 		{
-			axes[index].visible = v;
+			OM::GetOrCreateAxis(index)->visible = v;
 		}
 	}
 
 	void SetAxisWorkplaceOffset(size_t axisIndex, size_t workplaceIndex, float offset)
 	{
-		if (axisIndex < MaxTotalAxes && workplaceIndex < Workplaces::MaxTotalWorkplaces)
+		if (axisIndex < MaxTotalAxes && workplaceIndex < OM::Workplaces::MaxTotalWorkplaces)
 		{
-			axes[axisIndex].workplaceOffsets[workplaceIndex] = offset;
+			OM::GetOrCreateAxis(axisIndex)->workplaceOffsets[workplaceIndex] = offset;
 		}
 	}
 
 	void SetBedOrChamberHeater(int8_t heaterNumber, uint8_t heaterIndex, bool bed)
 	{
-		BedOrChamber* h = (bed) ? &bedHeater : &chamberHeater;
+		OM::BedOrChamber* h = (bed) ? &bedHeater : &chamberHeater;
 		h->heater = heaterNumber;
 		h->index = heaterIndex;
 	}
