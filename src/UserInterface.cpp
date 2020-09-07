@@ -234,12 +234,19 @@ AlertPopup::AlertPopup(const ColourScheme& colours)
 	constexpr PixelNumber hOffset = popupSideMargin + (alertPopupWidth - 2 * popupSideMargin - totalUnits * unitWidth)/2;
 
 	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonTextBackColour);
-	AddField(zUpCourseButton =   new TextButton(popupTopMargin + 6 * rowTextHeight, hOffset,				  buttonWidth, LESS_ARROW "2.0", evMoveZ, "-2.0"));
-	AddField(zUpMedButton =      new TextButton(popupTopMargin + 6 * rowTextHeight, hOffset + buttonStep,     buttonWidth, LESS_ARROW "0.2", evMoveZ, "-0.2"));
-	AddField(zUpFineButton =     new TextButton(popupTopMargin + 6 * rowTextHeight, hOffset + 2 * buttonStep, buttonWidth, LESS_ARROW "0.02", evMoveZ, "-0.02"));
-	AddField(zDownFineButton =   new TextButton(popupTopMargin + 6 * rowTextHeight, hOffset + 3 * buttonStep, buttonWidth, MORE_ARROW "0.02", evMoveZ, "0.02"));
-	AddField(zDownMedButton =    new TextButton(popupTopMargin + 6 * rowTextHeight, hOffset + 4 * buttonStep, buttonWidth, MORE_ARROW "0.2", evMoveZ, "0.2"));
-	AddField(zDownCourseButton = new TextButton(popupTopMargin + 6 * rowTextHeight, hOffset + 5 * buttonStep, buttonWidth, MORE_ARROW "2.0", evMoveZ, "2.0"));
+	AddField(zUpCourseButton =   new TextButton(popupTopMargin + 6 * rowTextHeight, hOffset,				  buttonWidth, LESS_ARROW "2.0", evMoveAxis, "-2.0"));
+	AddField(zUpMedButton =      new TextButton(popupTopMargin + 6 * rowTextHeight, hOffset + buttonStep,     buttonWidth, LESS_ARROW "0.2", evMoveAxis, "-0.2"));
+	AddField(zUpFineButton =     new TextButton(popupTopMargin + 6 * rowTextHeight, hOffset + 2 * buttonStep, buttonWidth, LESS_ARROW "0.02", evMoveAxis, "-0.02"));
+	AddField(zDownFineButton =   new TextButton(popupTopMargin + 6 * rowTextHeight, hOffset + 3 * buttonStep, buttonWidth, MORE_ARROW "0.02", evMoveAxis, "0.02"));
+	AddField(zDownMedButton =    new TextButton(popupTopMargin + 6 * rowTextHeight, hOffset + 4 * buttonStep, buttonWidth, MORE_ARROW "0.2", evMoveAxis, "0.2"));
+	AddField(zDownCourseButton = new TextButton(popupTopMargin + 6 * rowTextHeight, hOffset + 5 * buttonStep, buttonWidth, MORE_ARROW "2.0", evMoveAxis, "2.0"));
+	// TODO: Update these if order changes?
+	zUpCourseButton->SetEvent(evMoveAxis, 3);
+	zUpMedButton->SetEvent(evMoveAxis, 3);
+	zUpFineButton->SetEvent(evMoveAxis, 3);
+	zDownFineButton->SetEvent(evMoveAxis, 3);
+	zDownMedButton->SetEvent(evMoveAxis, 3);
+	zDownCourseButton->SetEvent(evMoveAxis, 3);
 
 	AddField(okButton =          new TextButton(popupTopMargin + 6 * rowTextHeight + buttonHeight + moveButtonRowSpacing, hOffset + buttonStep,     buttonWidth + buttonStep, "OK", evCloseAlert, "M292 P0"));
 	AddField(cancelButton =      new TextButton(popupTopMargin + 6 * rowTextHeight + buttonHeight + moveButtonRowSpacing, hOffset + 3 * buttonStep, buttonWidth + buttonStep, "Cancel", evCloseAlert, "M292 P1"));
@@ -294,12 +301,19 @@ AlertPopupP::AlertPopupP(const ColourScheme& colours)
 	constexpr PixelNumber hOffset = popupSideMargin/2 + (alertPopupWidthP - popupSideMargin - totalUnits * unitWidth)/2;
 
 	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonTextBackColour);
-	AddField(zUpCourseButton =   new TextButton(popupTopMargin + 8 * rowTextHeight, hOffset + 2 * buttonStep, buttonWidth, LESS_ARROW "2.0", evMoveZ, "-2.0"));
-	AddField(zUpMedButton =      new TextButton(popupTopMargin + 8 * rowTextHeight, hOffset + 1 * buttonStep, buttonWidth, LESS_ARROW "0.2", evMoveZ, "-0.2"));
-	AddField(zUpFineButton =     new TextButton(popupTopMargin + 8 * rowTextHeight, hOffset + 0 * buttonStep, buttonWidth, LESS_ARROW "0.02", evMoveZ, "-0.02"));
-	AddField(zDownFineButton =   new TextButton(popupTopMargin + 8 * rowTextHeight + buttonHeight + 2 * margin, hOffset + 0 * buttonStep, buttonWidth, MORE_ARROW "0.02", evMoveZ, "0.02"));
-	AddField(zDownMedButton =    new TextButton(popupTopMargin + 8 * rowTextHeight + buttonHeight + 2 * margin, hOffset + 1 * buttonStep, buttonWidth, MORE_ARROW "0.2", evMoveZ, "0.2"));
-	AddField(zDownCourseButton = new TextButton(popupTopMargin + 8 * rowTextHeight + buttonHeight + 2 * margin, hOffset + 2 * buttonStep, buttonWidth, MORE_ARROW "2.0", evMoveZ, "2.0"));
+	AddField(zUpCourseButton =   new TextButton(popupTopMargin + 8 * rowTextHeight, hOffset + 2 * buttonStep, buttonWidth, LESS_ARROW "2.0", evMoveAxisP, "-2.0"));
+	AddField(zUpMedButton =      new TextButton(popupTopMargin + 8 * rowTextHeight, hOffset + 1 * buttonStep, buttonWidth, LESS_ARROW "0.2", evMoveAxisP, "-0.2"));
+	AddField(zUpFineButton =     new TextButton(popupTopMargin + 8 * rowTextHeight, hOffset + 0 * buttonStep, buttonWidth, LESS_ARROW "0.02", evMoveAxisP, "-0.02"));
+	AddField(zDownFineButton =   new TextButton(popupTopMargin + 8 * rowTextHeight + buttonHeight + 2 * margin, hOffset + 0 * buttonStep, buttonWidth, MORE_ARROW "0.02", evMoveAxisP, "0.02"));
+	AddField(zDownMedButton =    new TextButton(popupTopMargin + 8 * rowTextHeight + buttonHeight + 2 * margin, hOffset + 1 * buttonStep, buttonWidth, MORE_ARROW "0.2", evMoveAxisP, "0.2"));
+	AddField(zDownCourseButton = new TextButton(popupTopMargin + 8 * rowTextHeight + buttonHeight + 2 * margin, hOffset + 2 * buttonStep, buttonWidth, MORE_ARROW "2.0", evMoveAxisP, "2.0"));
+	// TODO: Update these if order changes?
+	zUpCourseButton->SetEvent(evMoveAxisP, 3);
+	zUpMedButton->SetEvent(evMoveAxisP, 3);
+	zUpFineButton->SetEvent(evMoveAxisP, 3);
+	zDownFineButton->SetEvent(evMoveAxisP, 3);
+	zDownMedButton->SetEvent(evMoveAxisP, 3);
+	zDownCourseButton->SetEvent(evMoveAxisP, 3);
 
 	AddField(okButton =          new IconButton(popupTopMargin + 8 * rowTextHeight + 2 * buttonHeight + moveButtonRowSpacing + 2 * margin, hOffset + buttonStep/4,	   buttonWidth + buttonStep/4, IconOk, evCloseAlert, "M292 P0"));
 	AddField(cancelButton =      new IconButton(popupTopMargin + 8 * rowTextHeight + 2 * buttonHeight + moveButtonRowSpacing + 2 * margin, hOffset + 3 * buttonStep/2, buttonWidth + buttonStep/4, IconCancel, evCloseAlert, "M292 P1"));
@@ -645,7 +659,6 @@ void CreateMovePopup(const ColourScheme& colours)
 	PixelNumber ypos = popupTopMargin + buttonHeight + moveButtonRowSpacing;
 	const PixelNumber axisPosYpos = ypos + (MaxDisplayableAxes - 1) * (buttonHeight + moveButtonRowSpacing);
 	const PixelNumber xpos = popupSideMargin + axisLabelWidth;
-	Event e = evMoveX;
 	PixelNumber column = popupSideMargin + margin;
 	PixelNumber xyFieldWidth = (DISPLAY_X - (2 * margin) - (MaxDisplayableAxes * fieldSpacing))/(MaxDisplayableAxes + 1);
 
@@ -653,7 +666,7 @@ void CreateMovePopup(const ColourScheme& colours)
 	{
 		DisplayField::SetDefaultColours(colours.popupButtonTextColour, colours.popupButtonBackColour);
 		const char * array const * array values = (axisNames[i][0] == 'Z') ? zJogValues : xyJogValues;
-		CreateStringButtonRow(movePopup, ypos, xpos, movePopupWidth - xpos - popupSideMargin, fieldSpacing, 8, values, values, e);
+		CreateStringButtonRow(movePopup, ypos, xpos, movePopupWidth - xpos - popupSideMargin, fieldSpacing, 8, values, values, evMoveAxis);
 
 		// We create the label after the button row, so that the buttons follow it in the field order, which makes it easier to hide them
 		DisplayField::SetDefaultColours(colours.popupTextColour, colours.popupBackColour);
@@ -671,7 +684,6 @@ void CreateMovePopup(const ColourScheme& colours)
 		column += xyFieldWidth + fieldSpacing;
 
 		ypos += buttonHeight + moveButtonRowSpacing;
-		e = (Event)((uint8_t)e + 1);
 	}
 }
 
@@ -1712,6 +1724,12 @@ namespace UI
 		for (int i = 0; i < 9 && f != nullptr; ++i)
 		{
 			f->Show(b);
+			if (i > 0) // actual move buttons
+			{
+				TextButton *textButton = static_cast<TextButton*>(f);
+				// Use int value with slot here because string value is already taken by amount
+				textButton->SetEvent(textButton->GetEvent(), (int)slot);
+			}
 			f = f->next;
 		}
 		controlTabAxisPos[slot]->Show(b);
@@ -2984,15 +3002,15 @@ namespace UI
 				mgr.SetPopup(movePopup, AutoPlace, AutoPlace);
 				break;
 
-			case evMoveX:
-			case evMoveY:
-			case evMoveZ:
-			case evMoveU:
-			case evMoveV:
-			case evMoveW:
+			case evMoveAxis:
+			case evMoveAxisP:
 				{
-					const uint8_t axis = ev - evMoveX;
-					const char c = (axis < 3) ? 'X' + axis : ('U' - 3) + axis;
+					auto axis = OM::FindAxis([&bp](OM::Axis* axis) { return bp.GetEvent() == evMoveAxisP ? axis->slotP == bp.GetIParam() :  axis->slot == bp.GetIParam(); }); // @suppress("Invalid arguments")
+					if (axis == nullptr)
+					{
+						break;
+					}
+					const char c = axis->letter[0];
 					SerialIo::SendString("G91\nG1 ");
 					SerialIo::SendChar(c);
 					SerialIo::SendString(bp.GetSParam());
