@@ -80,9 +80,6 @@ namespace OM {
 		uint8_t slotP = MaxPendantTools;
 	};
 
-	typedef void (*AxisIterator)(Axis*);
-	typedef bool (*AxisIteratorWhile)(Axis*);
-
 	Axis* FindAxis(std::function<bool(Axis*)> filter);
 	Axis* GetAxis(size_t index);
 	Axis* GetAxisInSlot(size_t slot);

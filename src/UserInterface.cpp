@@ -1763,29 +1763,16 @@ namespace UI
 		if (axisIndex < MaxTotalAxes)
 		{
 			auto axis = OM::GetAxis(axisIndex);
-			if (axis == nullptr)
+			if (axis != nullptr && axis->slot < MaxDisplayableAxes)
 			{
-				return;
+				size_t slot = axis->slot;
+				controlTabAxisPos[slot]->SetValue(fval);
+				printTabAxisPos[slot]->SetValue(fval);
+				movePopupAxisPos[slot]->SetValue(fval);
 			}
-			size_t slot = axis->slot;
-			if (slot < MaxDisplayableAxes)
+			if (axis != nullptr && axis->slotP < MaxDisplayableAxesP)
 			{
-				if (controlTabAxisPos[slot] != nullptr)
-				{
-					controlTabAxisPos[slot]->SetValue(fval);
-				}
-				if (printTabAxisPos[slot] != nullptr)
-				{
-					printTabAxisPos[slot]->SetValue(fval);
-				}
-				if (movePopupAxisPos[slot] != nullptr)
-				{
-					movePopupAxisPos[slot]->SetValue(fval);
-				}
-			}
-			size_t slotP = axis->slotP;
-			if (slotP < MaxDisplayableAxesP)
-			{
+				size_t slotP = axis->slotP;
 				jogTabAxisPos[slotP]->SetValue(fval);
 				jobTabAxisPos[slotP]->SetValue(fval);
 			}
