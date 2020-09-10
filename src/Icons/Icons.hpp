@@ -21,8 +21,8 @@ extern const uint8_t IconHomeAll[], IconBedComp[];
 extern const uint8_t IconBed[], IconChamber[], IconOk[], IconCancel[], IconFiles[], IconKeyboard[], IconTrash[];
 extern const uint8_t IconBackspace[], IconUp[], IconDown[], IconEnter[];
 
-extern const uint8_t Xmax2min[], Xmin2max[], Ymax2min[], Ymin2max[], Zmax2min[];
+extern const uint8_t IconXmax2min[], IconXmin2max[], IconYmax2min[], IconYmin2max[], IconZmax2min[];
 
-extern const uint8_t SetToolOffsetXY[], SetToolOffsetZ[];
+extern const uint8_t IconSetToCurrent[];
 
 #endif /* ICONS_H_ */

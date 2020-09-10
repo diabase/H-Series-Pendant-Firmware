@@ -83,6 +83,7 @@ namespace UI
 	extern void SetAxisLetter(size_t index, char l);
 	extern void SetAxisVisible(size_t index, bool v);
 	extern void SetAxisWorkplaceOffset(size_t axisIndex, size_t workplaceIndex, float offset);
+	extern void SetCurrentWorkplaceNumber(uint8_t workplaceNumber);
 
 	extern void SetCurrentTool(int32_t tool);
 	extern void UpdateToolStatus(size_t index, ToolStatus status);

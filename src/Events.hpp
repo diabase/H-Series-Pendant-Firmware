@@ -28,7 +28,10 @@ enum Event : uint8_t
 	// Pendant tool selection
 	evToolSelect,
 
-	evMeasureZ, evProbeWorkpiece, evTouchoff, evSetToolOffset, evFindCenterOfCavity, evZeroAxisInWCS,
+	evMeasureZ,
+
+	// Pendant offset related
+	evProbeWorkpiece, evTouchoff, evSetToolOffset, evFindCenterOfCavity, evZeroAxisInWCS, evWCSOffsetsPopup, evSetAxesOffsetToCurrent,
 
 	// Heater control
 	evSelectHead, evSelectBed, evSelectChamber, evAdjustActiveTemp, evAdjustStandbyTemp,
@@ -41,6 +44,7 @@ enum Event : uint8_t
 	evMoveAxis, evMoveAxisP,
 	evExtrudeAmount, evExtrudeRate, evExtrude, evRetract,
 	evExtrudeAmountP, evExtrudeRateP,
+	evWCSSelect,
 	evHomeAxis,
 
 	// Print functions

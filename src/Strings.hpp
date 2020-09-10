@@ -88,7 +88,10 @@ struct StringTable
 	CSTRING findCenterOfCavity;
 	CSTRING touchOff;
 	CSTRING toolOffset;
-	CSTRING zeroWorkpiece;
+	CSTRING wcsOffsets;
+	CSTRING edit;
+	CSTRING axesOffsets;
+	CSTRING setToCurrent;
 
 	// Pendant Job page
 	CSTRING noJob;
@@ -209,7 +212,10 @@ const StringTable LanguageTables[NumLanguages] =
 		"Find Center of Cavity",
 		"Touch-off Plate",
 		"Set Tool Offset",
-		"Zero Axes in active WCS",
+		"WCS Offsets",
+		"Edit",
+		"Axes Offsets",
+		"Set to current",
 
 		// Pendant Job tab
 		"No job running",
@@ -351,7 +357,10 @@ const StringTable LanguageTables[NumLanguages] =
 		"Hohlraummitte finden",
 		"Tastplatte",
 		"Werkzeug Offset",
-		"Achsen in WCS Nullen",
+		"WCS Offsets",
+		"Edit",
+		"Axes Offsets",
+		"Set to current",
 
 		// Pendant Job tab
 		"Kein laufender Job",
@@ -492,7 +501,10 @@ const StringTable LanguageTables[NumLanguages] =
 		"Find Center of Cavity",
 		"Touch-off Plate",
 		"Set Tool Offset",
-		"Zero Axes in WCS",
+		"WCS Offsets",
+		"Edit",
+		"Axes Offsets",
+		"Set to current",
 
 		// Pendant Job tab
 		"No job running",
@@ -633,7 +645,10 @@ const StringTable LanguageTables[NumLanguages] =
 		"Find Center of Cavity",
 		"Touch-off Plate",
 		"Set Tool Offset",
-		"Zero Axes in WCS",
+		"WCS Offsets",
+		"Edit",
+		"Axes Offsets",
+		"Set to current",
 
 		// Pendant Job tab
 		"No job running",
@@ -774,7 +789,10 @@ const StringTable LanguageTables[NumLanguages] =
 		"Find Center of Cavity",
 		"Touch-off Plate",
 		"Tool Offset",
-		"Zero Axes in WCS",
+		"WCS Offsets",
+		"Edit",
+		"Axes Offsets",
+		"Set to current",
 
 		// Pendant Job tab
 		"No job running",

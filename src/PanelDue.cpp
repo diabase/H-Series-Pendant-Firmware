@@ -308,6 +308,7 @@ enum ReceivedDataEvent
 	rcvMoveExtrudersFactor,
 	rcvMoveKinematicsName,
 	rcvMoveSpeedFactor,
+	rcvMoveWorkplaceNumber,
 
 	// Keys for network response
 	rcvNetworkName,
@@ -411,6 +412,7 @@ static FieldTableEntry fieldTable[] =
 	{ rcvMoveExtrudersFactor, 			"result:extruders^:factor" },
 	{ rcvMoveKinematicsName, 			"result:kinematics:name" },
 	{ rcvMoveSpeedFactor, 				"result:speedFactor" },
+	{ rcvMoveWorkplaceNumber, 			"result:workplaceNumber" },
 
 	// M409 K"network" response
 	{ rcvNetworkName, 					"result:name" },
@@ -1833,6 +1835,16 @@ void ProcessReceivedValue(const char id[], const char data[], const size_t indic
 			if (GetFloat(data, fval))
 			{
 				UI::UpdateSpeedPercent((int) ((fval * 100.0f) + 0.5f));
+			}
+		}
+		break;
+
+	case rcvMoveWorkplaceNumber:
+		{
+			uint32_t workplaceNumber;
+			if (GetUnsignedInteger(data, workplaceNumber))
+			{
+				UI::SetCurrentWorkplaceNumber(workplaceNumber);
 			}
 		}
 		break;
