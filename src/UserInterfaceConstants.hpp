@@ -23,7 +23,7 @@ const size_t NumColourSchemes = 3;
 static const char* array const axisNames[] = { "X", "Y", "Z", "U", "V", "W", "A", "B", "C", "D" };
 constexpr size_t MaxTotalAxes = ARRAY_SIZE(axisNames);
 static const char* array const jogAxes[]  = { "X", "Y", "Z", "A", "C" };
-static const char* array wcsNames[] = { "G54", "G55", "G56", "G57", "G58", "G59", "G59.1", "G59.2", "G59.3" };
+static const char* array const wcsNames[] = { "G54", "G55", "G56", "G57", "G58", "G59", "G59.1", "G59.2", "G59.3" };
 
 #if DISPLAY_X == 480
 

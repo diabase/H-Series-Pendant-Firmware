@@ -2787,14 +2787,14 @@ namespace UI
 	}
 
 	void SendExtrusion(const bool retract, const char *amount, const char *rate) {
-		SerialIo::SendString("M120\nM83\nG1 E");
+		SerialIo::SendString("M120 M83 G1 E");
 		if (retract) {
 			SerialIo::SendChar('-');
 		}
 		SerialIo::SendString(amount);
 		SerialIo::SendString(" F");
 		SerialIo::SendString(rate);
-		SerialIo::SendString("\nM121\n");
+		SerialIo::SendString(" M121\n");
 	}
 
 	// Process a touch event
