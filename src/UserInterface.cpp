@@ -92,7 +92,7 @@ static TextField *timeLeftField, *zProbe;
 static TextField *fpNameField, *fpGeneratedByField, *fpLastModifiedField, *fpPrintTimeField;
 static StaticTextField *moveAxisRows[MaxDisplayableAxes];
 static StaticTextField *nameField, *statusField;
-static StaticTextField *screensaverText;
+static StaticTextField *screensaverText, *screensaverTextP;
 static StaticTextField *pNameField, *pStatusField;
 static IntegerButton *activeTemps[MaxHeaters], *standbyTemps[MaxHeaters];
 static IntegerButton *activeTempPJog, *standbyTempPJog;
@@ -1627,6 +1627,9 @@ void CreateScreensaverRoot()
 	static const char * text = "Touch to wake up";
 	screensaverTextWidth = DisplayField::GetTextWidth(text, DisplayX);
 	mgr.AddField(screensaverText = new StaticTextField(row1, margin, screensaverTextWidth, TextAlignment::Left, text));
+	PortraitDisplay(false);
+	mgr.AddField(screensaverTextP = new StaticTextField(row1, margin, screensaverTextWidth, TextAlignment::Left, text));
+	LandscapeDisplay(false);
 	screensaverRoot = mgr.GetRoot();
 }
 
@@ -2155,6 +2158,8 @@ namespace UI
 	{
 		lcd.fillScr(black);
 		mgr.SetRoot(screensaverRoot);
+		screensaverText->Show(isLandscape);
+		screensaverTextP->Show(!isLandscape);
 		mgr.Refresh(true);
 		lastScreensaverMoved = SystemTick::GetTickCount();
 	}
@@ -2176,8 +2181,14 @@ namespace UI
 			const PixelNumber x = (rand_r(&seed) % availableWidth);
 			const PixelNumber y = (rand_r(&seed) % availableHeight);
 			lcd.fillScr(black);
-			// FIXME: we need a rotated text here as well
-			screensaverText->SetPosition(x + margin, y + margin);
+			if (isLandscape)
+			{
+				screensaverText->SetPosition(x + margin, y + margin);
+			}
+			else
+			{
+				screensaverTextP->SetPosition(x + margin, y + margin);
+			}
 			lastScreensaverMoved = SystemTick::GetTickCount();
 		}
 	}
@@ -3701,6 +3712,7 @@ namespace UI
 			case evSetBaudRate:
 			case evSetVolume:
 			case evSetInfoTimeout:
+			case evSetScreensaverTimeout:
 			case evSetColours:
 				if (fieldBeingAdjusted.GetEvent() == evAdjustActiveRPM && !isLandscape)
 				{
@@ -3748,6 +3760,7 @@ namespace UI
 			case evSetBaudRate:
 			case evSetVolume:
 			case evSetInfoTimeout:
+			case evSetScreensaverTimeout:
 			case evSetColours:
 			case evSetLanguage:
 			case evCalTouch:
