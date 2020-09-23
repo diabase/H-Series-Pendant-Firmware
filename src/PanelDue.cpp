@@ -67,7 +67,8 @@ extern uint16_t _esplash[];							// defined in linker script
 #define DEBUG	(0)
 
 // Controlling constants
-const uint32_t printerPollInterval = 1000;			// poll interval in milliseconds
+const uint32_t defaultPrinterPollInterval = 1000;			// poll interval in milliseconds
+constexpr uint32_t slowPrinterPollInterval = defaultPrinterPollInterval * 4;	// poll interval in milliseconds when screensaver active
 const uint32_t printerResponseInterval = 700;		// shortest time after a response that we send another poll (gives printer time to catch up)
 const uint32_t printerPollTimeout = 4000;			// poll timeout in milliseconds
 const uint32_t FileInfoRequestTimeout = 8000;		// file info request timeout in milliseconds
@@ -132,6 +133,7 @@ static uint32_t lastResponseTime = 0;
 static uint32_t lastActionTime = 0;							// the last time anything significant happened
 static FirmwareFeatures firmwareFeatures = 0;
 static bool isDimmed = false;								// true if we have dimmed the display
+static bool screensaverActive = false;						// true if screensaver is active
 static bool isDelta = false;
 static size_t numAxes = MIN_AXES;
 static int32_t beepFrequency = 0, beepLength = 0;
@@ -144,6 +146,7 @@ static int8_t lastTool = -1;
 static uint8_t mountedVolumesCounted = 0;
 static uint32_t remoteUpTime = 0;
 static bool initialized = false;
+static uint32_t printerPollInterval = defaultPrinterPollInterval;
 
 const ColourScheme *colours = &colourSchemes[0];
 
@@ -154,7 +157,7 @@ struct FlashData
 {
 	// The magic value should be changed whenever the layout of the NVRAM changes
 	// We now use a different magic value for each display size, to force the "touch the spot" screen to be displayed when you change the display size
-	static const uint32_t magicVal = 0x3AB62A20 + DISPLAY_TYPE;
+	static const uint32_t magicVal = 0x3AB63A20 + DISPLAY_TYPE;
 	static const uint32_t muggleVal = 0xFFFFFFFF;
 
 	uint32_t magic;
@@ -171,6 +174,7 @@ struct FlashData
 	uint8_t brightness;
 	DisplayDimmerType displayDimmerType;
 	uint8_t infoTimeout;
+	uint32_t screensaverTimeout;
 	//uint8_t padding[4];
 	char dummy;								// must be at a multiple of 4 bytes from the start because flash is read/written in whole dwords
 
@@ -646,7 +650,8 @@ bool FlashData::operator==(const FlashData& other)
 		&& colourScheme == other.colourScheme
 		&& brightness == other.brightness
 		&& displayDimmerType == other.displayDimmerType
-		&& infoTimeout == other.infoTimeout;
+		&& infoTimeout == other.infoTimeout
+		&& screensaverTimeout == other.screensaverTimeout;
 }
 
 void FlashData::SetDefaults()
@@ -664,6 +669,7 @@ void FlashData::SetDefaults()
 	colourScheme = 1;
 	displayDimmerType = DisplayDimmerType::always;
 	infoTimeout = DefaultInfoTimeout;
+	screensaverTimeout = DefaultScreensaverTimeout;
 	magic = magicVal;
 }
 
@@ -916,11 +922,20 @@ extern void SetBrightness(int percent)
 	RestoreBrightness();
 }
 
+void DeactivateScreensaver() {
+	if (screensaverActive) {
+		UI::DeactivateScreensaver();
+		screensaverActive = false;
+		printerPollInterval = defaultPrinterPollInterval;
+	}
+}
+
 extern void RestoreBrightness()
 {
 	Buzzer::SetBacklight(nvData.brightness);
 	lastActionTime = SystemTick::GetTickCount();
 	isDimmed = false;
+	DeactivateScreensaver();
 }
 
 extern void DimBrightness()
@@ -931,6 +946,25 @@ extern void DimBrightness()
 	{
 		Buzzer::SetBacklight(nvData.brightness/8);
 		isDimmed = true;
+	}
+}
+
+void ActivateScreensaver()
+{
+	if (!screensaverActive)
+	{
+		if (!isDimmed)
+		{
+			Buzzer::SetBacklight(nvData.brightness/4);	// If the user disabled dimming we do it still here
+			isDimmed = true;
+		}
+		screensaverActive = true;
+		UI::ActivateScreensaver();
+		printerPollInterval = slowPrinterPollInterval;
+	}
+	else
+	{
+		UI::AnimateScreensaver();
 	}
 }
 
@@ -952,6 +986,11 @@ void SetVolume(uint8_t newVolume)
 void SetInfoTimeout(uint8_t newInfoTimeout)
 {
 	nvData.infoTimeout = newInfoTimeout;
+}
+
+void SetScreensaverTimeout(uint32_t screensaverTimeout)
+{
+	nvData.screensaverTimeout = screensaverTimeout;
 }
 
 bool SetColourScheme(uint8_t newColours)
@@ -982,6 +1021,10 @@ uint32_t GetVolume()
 int GetBrightness()
 {
 	return (int)nvData.brightness;
+}
+
+uint32_t GetScreensaverTimeout() {
+	return nvData.screensaverTimeout;
 }
 
 // Factory reset
@@ -1632,8 +1675,8 @@ void ProcessReceivedValue(const char id[], const char data[], const size_t indic
 
 	case rcvLiveSpindlesCurrent:
 		{
-			float current;
-			if (GetFloat(data, current))
+			uint32_t current;
+			if (GetUnsignedInteger(data, current))
 			{
 				UI::SetSpindleCurrent(indices[0], current);
 			}
@@ -1860,8 +1903,8 @@ void ProcessReceivedValue(const char id[], const char data[], const size_t indic
 	// Spindles section
 	case rcvSpindlesActive:
 		{
-			float active;
-			if (GetFloat(data, active))
+			uint32_t active;
+			if (GetUnsignedInteger(data, active))
 			{
 				UI::SetSpindleActive(indices[0], active);
 			}
@@ -1881,8 +1924,8 @@ void ProcessReceivedValue(const char id[], const char data[], const size_t indic
 			break;
 		}
 		{
-			float max;
-			if (GetFloat(data, max))
+			uint32_t max;
+			if (GetUnsignedInteger(data, max))
 			{
 				UI::SetSpindleMax(indices[0], max);
 			}
@@ -2213,7 +2256,7 @@ int main(void)
 				touchX->SetValue((int)x);	//debug
 				touchY->SetValue((int)y);	//debug
 #endif
-				if (isDimmed)
+				if (isDimmed || screensaverActive)
 				{
 					RestoreBrightness();
 					DelayTouchLong();			// ignore further touches for a while
@@ -2241,9 +2284,16 @@ int main(void)
 					}
 				}
 			}
-			else if (!isDimmed && SystemTick::GetTickCount() - lastActionTime >= DimDisplayTimeout && UI::CanDimDisplay())
+			else if (SystemTick::GetTickCount() - lastActionTime >= DimDisplayTimeout)
 			{
-				DimBrightness();				// it might not actually dim the display, depending on various flags
+				if (!isDimmed && UI::CanDimDisplay()){
+					DimBrightness();				// it might not actually dim the display, depending on various flags
+				}
+				uint32_t screensaverTimeout = GetScreensaverTimeout();
+				if (screensaverTimeout > 0 && SystemTick::GetTickCount() - lastActionTime >= screensaverTimeout)
+				{
+					ActivateScreensaver();
+				}
  			}
 		}
 		ShowLine;

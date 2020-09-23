@@ -28,7 +28,10 @@ namespace UI
 {
 	extern unsigned int GetNumLanguages();
 	extern void CreateFields(uint32_t language, const ColourScheme& colours, uint32_t p_infoTimeout);
-	extern void ShowAxis(size_t axis, bool b);
+	extern void ActivateScreensaver();
+	extern void DeactivateScreensaver();
+	extern void AnimateScreensaver();
+	extern void ShowAxis(size_t axis, bool b, char axisLetter =  '\0');
 	extern void UpdateAxisPosition(size_t axis, float fval);
 	extern void UpdateCurrentTemperature(size_t heater, float fval);
 	extern void UpdateHeaterStatus(const size_t heater, const HeaterStatus status);
@@ -93,9 +96,9 @@ namespace UI
 
 	extern void SetBedOrChamberHeater(int8_t heaterNumber, uint8_t heaterIndex, bool bed = true);
 
-	extern void SetSpindleActive(size_t index, float active);
-	extern void SetSpindleCurrent(size_t index, float current);
-	extern void SetSpindleMax(size_t index, float max);
+	extern void SetSpindleActive(size_t index, uint16_t active);
+	extern void SetSpindleCurrent(size_t index, uint16_t current);
+	extern void SetSpindleMax(size_t index, uint16_t max);
 	extern void SetSpindleTool(int8_t spindle, int8_t toolIndex);
 }
 

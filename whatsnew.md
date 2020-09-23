@@ -1,3 +1,48 @@
+# Version 3.2-RC2
+
+## Upgrade Notes:
+- This release is compatible with RepRapFirmware 3.2-beta1 or later. It will partially work with RepRapFirmware 3.1.1 but not with any older version.
+
+## Limitations
+Due to the lack of RAM this build will not run on version 1 or early version 2 PanelDue boards that use the `ATSAM3S2B` chip.
+- Version 1.0, 1.1 and earlier v2 PanelDue: ATSAM3S2B processor (64MHz, 32kb RAM, 128kB flash) - these are the ones that the new firmware probably won't run on.
+- Version 2 PanelDue manufactured from August 2016: ATSAM3S4B processor (64MHz, 48kb RAM, 256kb flash). Will run the new firmware, but not as fast as version 3 will.
+- Version 3 PanelDue, including all 5i and 7i: ATSAM4S4B processor, 120MHz, 64kB RAM, 256kb flash. Will run the new firmware.
+
+# Changes since RC1:
+- Status colors of tools were confusing (because a tool can never go to "off" after being active once) so it only shows "active" or "anything else"
+
+## Bug fixes since RC1:
+- In some cases setting a tool's heater would instead the heatbed temperature
+- Chamber and heatbed icons did not change colors according to their state
+- It was not possible to disable the chamber heater by tapping the chamber button
+- Move popup buttons were none-functional
+- Commands entered via on-screen-keyboard were not echoed into the text field
+
+# Version 3.2-RC1
+
+## Upgrade notes:
+- This release is compatible with RepRapFirmware 3.2-beta1 or later. It will partially work with RepRapFirmware 3.1.1 but not with any older version.
+- Flashing this release will reset the configuration to defaults
+
+## Limitations
+- Due to the lack of RAM this build will not run on version 1 or early version 2 PanelDue boards that use the `ATSAM3S2B` chip. It  is expected to work on later
+version 2 PanelDue boards using the `ATSAM3S4B` chip. If you have a PanelDue using the `ATSAM3S2B` chip, we suggest you replace the board by
+a version 3 PanelDue board, which can drive your existing LCD.
+
+## New and changed features:
+- This release uses the RepRapFirmware ObjectModel instead of limited status responses
+- Support for spindles with current RPM as well as active RPM
+- Bed heater will only be shown if it is configured
+- Support for chamber heaters (will only show if bed heater + number of tools <= 6)
+- Tools and assigned heaters and extruders can be numbered arbitrarily (e.g. tool 1 can use heater 8 and extruder 2)
+- A simple screensaver has been added to help preventing screen burn-in on long-lasting prints
+- Tool buttons will reflect the tool status
+- Prevent flickering if values did not change
+
+## Bug fixes
+- Axes will be shown as they are configured, i.e. if configured axes are XYZA then PanelDue will display them like this instead of XYZU
+
 Version 1.20
 ------------
 

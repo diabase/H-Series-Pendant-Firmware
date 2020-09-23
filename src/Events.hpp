@@ -14,7 +14,7 @@ enum Event : uint8_t
 {
 	evNull = 0,						// value must match nullEvent declared in Display.hpp
 
-	evDefaultRoot, evPendantRoot,
+	evDefaultRoot, evPendantRoot, evScreensaverRoot,
 
 	// Page selection
 	evTabControl, evTabPrint, evTabMsg, evTabSetup,
@@ -34,7 +34,10 @@ enum Event : uint8_t
 	evProbeWorkpiece, evTouchoff, evSetToolOffset, evFindCenterOfCavity, evZeroAxisInWCS, evWCSOffsetsPopup, evSetAxesOffsetToCurrent,
 
 	// Heater control
-	evSelectHead, evSelectBed, evSelectChamber, evAdjustActiveTemp, evAdjustStandbyTemp,
+	evSelectHead, evSelectBed, evSelectChamber,
+	evAdjustToolActiveTemp, evAdjustToolStandbyTemp,
+	evAdjustBedActiveTemp, evAdjustBedStandbyTemp,
+	evAdjustChamberActiveTemp, evAdjustChamberStandbyTemp,
 
 	// Spindle control
 	evAdjustActiveRPM,
@@ -81,7 +84,7 @@ enum Event : uint8_t
 	evAdjustLanguage, evSetLanguage,
 	evAdjustColours, evSetColours,
 	evBrighter, evDimmer,
-	evSetDimmingType,
+	evSetDimmingType, evSetScreensaverTimeout, evAdjustScreensaverTimeout,
 
 	evEmergencyStop,
 

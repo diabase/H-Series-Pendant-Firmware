@@ -58,7 +58,7 @@ static TextButton *controlPageMacroButtons[NumControlPageMacroButtons];
 static String<controlPageMacroTextLength> controlPageMacroText[NumControlPageMacroButtons];
 
 static PopupWindow *setTempPopup, *setRPMPopup, *movePopup, *extrudePopup, *fileListPopup, *macrosPopup, *fileDetailPopup, *baudPopup,
-		*volumePopup, *infoTimeoutPopup, *areYouSurePopup, *keyboardPopup, *languagePopup, *coloursPopup;
+		*volumePopup, *infoTimeoutPopup, *screensaverTimeoutPopup, *areYouSurePopup, *keyboardPopup, *languagePopup, *coloursPopup;
 #ifdef SUPPORT_ENCODER
 static PopupWindow *setTempPopupEncoder, *macrosPopupP;
 #endif
@@ -67,7 +67,7 @@ static PopupWindow *areYouSurePopupP, *extrudePopupP, *wcsOffsetsPopup;
 static FloatButton* wcsOffsetPos[ARRAY_SIZE(jogAxes)];
 static IconButton* wcsSetToCurrent[ARRAY_SIZE(jogAxes)];
 static StaticTextField *areYouSureTextFieldP, *areYouSureQueryFieldP;
-static DisplayField *baseRoot, *commonRoot, *controlRoot, *printRoot, *messageRoot, *setupRoot,
+static DisplayField *emptyRoot, *baseRoot, *commonRoot, *controlRoot, *printRoot, *messageRoot, *setupRoot, *screensaverRoot,
 		*pendantBaseRoot, *pendantJogRoot, *pendantOffsetRoot, *pendantJobRoot;
 static SingleButton *homeAllButton, *bedCompButton;
 static IconButtonWithText *homeButtons[MaxDisplayableAxes], *toolButtons[MaxHeaters];
@@ -92,13 +92,14 @@ static TextField *timeLeftField, *zProbe;
 static TextField *fpNameField, *fpGeneratedByField, *fpLastModifiedField, *fpPrintTimeField;
 static StaticTextField *moveAxisRows[MaxDisplayableAxes];
 static StaticTextField *nameField, *statusField;
+static StaticTextField *screensaverText;
 static StaticTextField *pNameField, *pStatusField;
 static IntegerButton *activeTemps[MaxHeaters], *standbyTemps[MaxHeaters];
 static IntegerButton *activeTempPJog, *standbyTempPJog;
 static IntegerButton *activeTempsPJob[MaxPendantTools], *standbyTempsPJob[MaxPendantTools];
 static IntegerField *currentToolField;
 static StaticTextField *currentWCSField;
-static IntegerButton *spd, *extrusionFactors[MaxHeaters], *fanSpeed, *baudRateButton, *volumeButton, *infoTimeoutButton;
+static IntegerButton *spd, *extrusionFactors[MaxHeaters], *fanSpeed, *baudRateButton, *volumeButton, *infoTimeoutButton, *screensaverTimeoutButton;
 static TextButton *languageButton, *coloursButton, *dimmingTypeButton;
 static SingleButton *moveButton, *extrudeButton, *macroButton;
 static PopupWindow *babystepPopup;
@@ -148,6 +149,9 @@ uint32_t infoTimeout = DefaultInfoTimeout;				// info timeout in seconds, 0 mean
 uint32_t whenAlertReceived;
 bool displayingResponse = false;						// true if displaying a response
 
+static PixelNumber screensaverTextWidth = 0;
+static uint32_t lastScreensaverMoved = 0;
+
 static int32_t currentTool = -1;
 static uint8_t currentWorkplaceNumber = 0;
 static OM::BedOrChamber bedHeater, chamberHeater;
@@ -182,7 +186,8 @@ public:
 	void Set(const char *title, const char *text, int32_t mode, uint32_t controls);
 
 private:
-	TextButton *okButton, *cancelButton, *zUpCourseButton, *zUpMedButton, *zUpFineButton, *zDownCourseButton, *zDownMedButton, *zDownFineButton;
+	TextButton *okButton, *cancelButton;
+	TextButtonForAxis *zUpCourseButton, *zUpMedButton, *zUpFineButton, *zDownCourseButton, *zDownMedButton, *zDownFineButton;
 	String<alertTextLength/3> alertText1, alertText2, alertText3;
 	String<alertTitleLength> alertTitle;
 };
@@ -239,19 +244,18 @@ AlertPopup::AlertPopup(const ColourScheme& colours)
 	constexpr PixelNumber hOffset = popupSideMargin + (alertPopupWidth - 2 * popupSideMargin - totalUnits * unitWidth)/2;
 
 	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonTextBackColour);
-	AddField(zUpCourseButton =   new TextButton(popupTopMargin + 6 * rowTextHeight, hOffset,				  buttonWidth, LESS_ARROW "2.0", evMoveAxis, "-2.0"));
-	AddField(zUpMedButton =      new TextButton(popupTopMargin + 6 * rowTextHeight, hOffset + buttonStep,     buttonWidth, LESS_ARROW "0.2", evMoveAxis, "-0.2"));
-	AddField(zUpFineButton =     new TextButton(popupTopMargin + 6 * rowTextHeight, hOffset + 2 * buttonStep, buttonWidth, LESS_ARROW "0.02", evMoveAxis, "-0.02"));
-	AddField(zDownFineButton =   new TextButton(popupTopMargin + 6 * rowTextHeight, hOffset + 3 * buttonStep, buttonWidth, MORE_ARROW "0.02", evMoveAxis, "0.02"));
-	AddField(zDownMedButton =    new TextButton(popupTopMargin + 6 * rowTextHeight, hOffset + 4 * buttonStep, buttonWidth, MORE_ARROW "0.2", evMoveAxis, "0.2"));
-	AddField(zDownCourseButton = new TextButton(popupTopMargin + 6 * rowTextHeight, hOffset + 5 * buttonStep, buttonWidth, MORE_ARROW "2.0", evMoveAxis, "2.0"));
-	// TODO: Update these if order changes?
-	zUpCourseButton->SetEvent(evMoveAxis, 3);
-	zUpMedButton->SetEvent(evMoveAxis, 3);
-	zUpFineButton->SetEvent(evMoveAxis, 3);
-	zDownFineButton->SetEvent(evMoveAxis, 3);
-	zDownMedButton->SetEvent(evMoveAxis, 3);
-	zDownCourseButton->SetEvent(evMoveAxis, 3);
+	AddField(zUpCourseButton =   new TextButtonForAxis(popupTopMargin + 6 * rowTextHeight, hOffset,				  buttonWidth, LESS_ARROW "2.0", evMoveAxis, "-2.0"));
+	AddField(zUpMedButton =      new TextButtonForAxis(popupTopMargin + 6 * rowTextHeight, hOffset + buttonStep,     buttonWidth, LESS_ARROW "0.2", evMoveAxis, "-0.2"));
+	AddField(zUpFineButton =     new TextButtonForAxis(popupTopMargin + 6 * rowTextHeight, hOffset + 2 * buttonStep, buttonWidth, LESS_ARROW "0.02", evMoveAxis, "-0.02"));
+	AddField(zDownFineButton =   new TextButtonForAxis(popupTopMargin + 6 * rowTextHeight, hOffset + 3 * buttonStep, buttonWidth, MORE_ARROW "0.02", evMoveAxis, "0.02"));
+	AddField(zDownMedButton =    new TextButtonForAxis(popupTopMargin + 6 * rowTextHeight, hOffset + 4 * buttonStep, buttonWidth, MORE_ARROW "0.2", evMoveAxis, "0.2"));
+	AddField(zDownCourseButton = new TextButtonForAxis(popupTopMargin + 6 * rowTextHeight, hOffset + 5 * buttonStep, buttonWidth, MORE_ARROW "2.0", evMoveAxis, "2.0"));
+	zUpCourseButton->SetAxisLetter('Z');
+	zUpMedButton->SetAxisLetter('Z');
+	zUpFineButton->SetAxisLetter('Z');
+	zDownFineButton->SetAxisLetter('Z');
+	zDownMedButton->SetAxisLetter('Z');
+	zDownCourseButton->SetAxisLetter('Z');
 
 	AddField(okButton =          new TextButton(popupTopMargin + 6 * rowTextHeight + buttonHeight + moveButtonRowSpacing, hOffset + buttonStep,     buttonWidth + buttonStep, "OK", evCloseAlert, "M292 P0"));
 	AddField(cancelButton =      new TextButton(popupTopMargin + 6 * rowTextHeight + buttonHeight + moveButtonRowSpacing, hOffset + 3 * buttonStep, buttonWidth + buttonStep, "Cancel", evCloseAlert, "M292 P1"));
@@ -454,13 +458,16 @@ IconButtonWithText *AddIconButtonWithText(PixelNumber row, unsigned int col, uns
 // Optionally, set one to 'pressed' and return that one.
 // Set the colours before calling this
 ButtonPress CreateStringButtonRow(Window * pf, PixelNumber top, PixelNumber left, PixelNumber totalWidth, PixelNumber spacing, unsigned int numButtons,
-									const char* array const text[], const char* array const params[], Event evt, int selected = -1)
+									const char* array const text[], const char* array const params[], Event evt, int selected = -1, bool textButtonForAxis = false)
 {
 	const PixelNumber step = (totalWidth + spacing)/numButtons;
 	ButtonPress bp;
 	for (unsigned int i = 0; i < numButtons; ++i)
 	{
-		TextButton *tp = new TextButton(top, left + i * step, step - spacing, text[i], evt, params[i]);
+		TextButton *tp =
+				textButtonForAxis
+				? new TextButtonForAxis(top, left + i * step, step - spacing, text[i], evt, params[i])
+				: new TextButton(top, left + i * step, step - spacing, text[i], evt, params[i]);
 		pf->AddField(tp);
 		if ((int)i == selected)
 		{
@@ -683,14 +690,14 @@ void CreateMovePopup(const ColourScheme& colours)
 	{
 		DisplayField::SetDefaultColours(colours.popupButtonTextColour, colours.popupButtonBackColour);
 		const char * array const * array values = (axisNames[i][0] == 'Z') ? zJogValues : xyJogValues;
-		CreateStringButtonRow(movePopup, ypos, xpos, movePopupWidth - xpos - popupSideMargin, fieldSpacing, 8, values, values, evMoveAxis);
+		CreateStringButtonRow(movePopup, ypos, xpos, movePopupWidth - xpos - popupSideMargin, fieldSpacing, 8, values, values, evMoveAxis, -1, true);
 
 		// We create the label after the button row, so that the buttons follow it in the field order, which makes it easier to hide them
 		DisplayField::SetDefaultColours(colours.popupTextColour, colours.popupBackColour);
 		StaticTextField * const tf = new StaticTextField(ypos + labelRowAdjust, popupSideMargin, axisLabelWidth, TextAlignment::Left, axisNames[i]);
 		movePopup->AddField(tf);
 		moveAxisRows[i] = tf;
-		UI::ShowAxis(i, i < MIN_AXES);
+		UI::ShowAxis(i, i < MIN_AXES, axisNames[i][0]);
 
 		DisplayField::SetDefaultColours(colours.popupTextColour, colours.popupInfoBackColour);
 		FloatField *f = new FloatField(axisPosYpos, column, xyFieldWidth, TextAlignment::Left, (i == 2) ? 2 : 1, axisNames[i]);
@@ -961,6 +968,14 @@ void CreateInfoTimeoutPopup(const ColourScheme& colours)
 	infoTimeoutPopup = CreateIntPopupBar(colours, fullPopupWidth, ARRAY_SIZE(infoTimeoutPopupText), infoTimeoutPopupText, values, evAdjustInfoTimeout, evAdjustInfoTimeout);
 }
 
+// Create the screensaver timeout adjustment popup
+void CreateScreensaverTimeoutPopup(const ColourScheme& colours)
+{
+	static const char* const screensaverTimeoutPopupText[Buzzer::MaxVolume + 1] = { "off", "60", "120", "180", "240", "300" };
+	static const int values[] = { 0, 60, 120, 180, 240, 300 };
+	screensaverTimeoutPopup = CreateIntPopupBar(colours, fullPopupWidth, ARRAY_SIZE(screensaverTimeoutPopupText), screensaverTimeoutPopupText, values, evAdjustScreensaverTimeout, evAdjustScreensaverTimeout);
+}
+
 // Create the colour scheme change popup
 void CreateColoursPopup(const ColourScheme& colours)
 {
@@ -1108,7 +1123,7 @@ void CreateTemperatureGrid(const ColourScheme& colours)
 		// Add the active temperature button
 		DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonTextBackColour);
 		IntegerButton *ib = new IntegerButton(row4, column, tempButtonWidth);
-		ib->SetEvent(evAdjustActiveTemp, (int)i);
+		ib->SetEvent(evAdjustToolActiveTemp, (int)i);
 		ib->SetValue(0);
 		ib->Show(false);
 		activeTemps[i] = ib;
@@ -1116,7 +1131,7 @@ void CreateTemperatureGrid(const ColourScheme& colours)
 
 		// Add the standby temperature button
 		ib = new IntegerButton(row5, column, tempButtonWidth);
-		ib->SetEvent(evAdjustStandbyTemp, (int)i);
+		ib->SetEvent(evAdjustToolStandbyTemp, (int)i);
 		ib->SetValue(0);
 		ib->Show(false);
 		standbyTemps[i] = ib;
@@ -1309,6 +1324,8 @@ void CreateSetupTabFields(uint32_t language, const ColourScheme& colours)
 	infoTimeoutButton = AddIntegerButton(row6, 1, 3, strings->infoTimeout, nullptr, evSetInfoTimeout);
 	infoTimeoutButton->SetValue(infoTimeout);
 	AddTextButton(row6, 2, 3, strings->clearSettings, evFactoryReset, nullptr);
+	screensaverTimeoutButton = AddIntegerButton(row7, 0, 3, strings->screensaverAfter, nullptr, evSetScreensaverTimeout);
+	screensaverTimeoutButton->SetValue(GetScreensaverTimeout() / 1000);
 	setupRoot = mgr.GetRoot();
 }
 
@@ -1407,14 +1424,14 @@ void CreatePendantJogTabFields(const ColourScheme& colours) {
 
 	// Add the active temperature button
 	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonTextBackColour);
-	activeTempPJog = AddIntegerButton(secondBlock + 3 * rowHeightP, extrudeCol, 3, nullptr, nullptr, evAdjustActiveTemp, DisplayXP);
+	activeTempPJog = AddIntegerButton(secondBlock + 3 * rowHeightP, extrudeCol, 3, nullptr, nullptr, evAdjustToolActiveTemp, DisplayXP);
 	activeTempPJog->SetValue(0);
-	activeTempPJog->SetEvent(evAdjustActiveTemp, (int)-1);
+	activeTempPJog->SetEvent(evAdjustToolActiveTemp, (int)-1);
 
 	// Add the standby temperature button
-	standbyTempPJog = AddIntegerButton(secondBlock + 5 * rowHeightP, extrudeCol, 3, nullptr, nullptr, evAdjustStandbyTemp, DisplayXP);
+	standbyTempPJog = AddIntegerButton(secondBlock + 5 * rowHeightP, extrudeCol, 3, nullptr, nullptr, evAdjustToolStandbyTemp, DisplayXP);
 	standbyTempPJog->SetValue(0);
-	standbyTempPJog->SetEvent(evAdjustStandbyTemp, (int)-1);
+	standbyTempPJog->SetEvent(evAdjustToolStandbyTemp, (int)-1);
 
 	// Add the Extrude popup button
 	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonTextBackColour);
@@ -1550,7 +1567,7 @@ void CreatePendantJobTabFields(const ColourScheme& colours) {
 		// Add the active temperature button
 		DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonTextBackColour);
 		IntegerButton *ib = new IntegerButton(row, activeCol+20, tempButtonWidth);
-		ib->SetEvent(evAdjustActiveTemp, (int)i);
+		ib->SetEvent(evAdjustToolActiveTemp, (int)i);
 		ib->SetValue(0);
 		ib->Show(false);
 		activeTempsPJob[i] = ib;
@@ -1558,7 +1575,7 @@ void CreatePendantJobTabFields(const ColourScheme& colours) {
 
 		// Add the standby temperature button
 		ib = new IntegerButton(row, standbyCol+30, tempButtonWidth);
-		ib->SetEvent(evAdjustStandbyTemp, (int)i);
+		ib->SetEvent(evAdjustToolStandbyTemp, (int)i);
 		ib->SetValue(0);
 		ib->Show(false);
 		standbyTempsPJob[i] = ib;
@@ -1603,12 +1620,23 @@ void CreateCommonFields(const ColourScheme& colours)
 	tabSetup = AddTextButton(rowTabs, 4, 5, strings->setup, evTabSetup, nullptr);
 }
 
+void CreateScreensaverRoot()
+{
+	mgr.SetRoot(emptyRoot);
+	DisplayField::SetDefaultColours(white, black);
+	static const char * text = "Touch to wake up";
+	screensaverTextWidth = DisplayField::GetTextWidth(text, DisplayX);
+	mgr.AddField(screensaverText = new StaticTextField(row1, margin, screensaverTextWidth, TextAlignment::Left, text));
+	screensaverRoot = mgr.GetRoot();
+}
+
 void CreateMainPages(uint32_t language, const ColourScheme& colours)
 {
 	if (language >= ARRAY_SIZE(LanguageTables))
 	{
 		language = 0;
 	}
+	emptyRoot = mgr.GetRoot();
 	strings = &LanguageTables[language];
 	CreateCommonFields(colours);
 	baseRoot = mgr.GetRoot();		// save the root of fields that we usually display
@@ -1625,6 +1653,7 @@ void CreateMainPages(uint32_t language, const ColourScheme& colours)
 	CreatePrintingTabFields(colours);
 	CreateMessageTabFields(colours);
 	CreateSetupTabFields(language, colours);
+	CreateScreensaverRoot();
 }
 
 namespace UI
@@ -1695,6 +1724,7 @@ namespace UI
 		CreateFileActionPopup(colours);
 		CreateVolumePopup(colours);
 		CreateInfoTimeoutPopup(colours);
+		CreateScreensaverTimeoutPopup(colours);
 		CreateBaudRatePopup(colours);
 		CreateColoursPopup(colours);
 		CreateAreYouSurePopup(colours);
@@ -1751,7 +1781,7 @@ namespace UI
 	}
 
 	// Show or hide an axis on the move button grid and on the axis display
-	void ShowAxis(size_t slot, bool b)
+	void ShowAxis(size_t slot, bool b, char axisLetter)
 	{
 		if (slot >= MaxDisplayableAxes)
 		{
@@ -1764,9 +1794,9 @@ namespace UI
 			f->Show(b);
 			if (i > 0) // actual move buttons
 			{
-				TextButton *textButton = static_cast<TextButton*>(f);
+				TextButtonForAxis *textButton = static_cast<TextButtonForAxis*>(f);
 				// Use int value with slot here because string value is already taken by amount
-				textButton->SetEvent(textButton->GetEvent(), (int)slot);
+				textButton->SetAxisLetter(axisLetter);
 			}
 			f = f->next;
 		}
@@ -1863,25 +1893,36 @@ namespace UI
 			return;
 		}
 		heaterStatus[heaterSlot] = status;
-		Colour c = (status == HeaterStatus::standby) ? colours->standbyBackColour
-						: (status == HeaterStatus::active) ? colours->activeBackColour
-						: (status == HeaterStatus::fault) ? colours->errorBackColour
-						: (status == HeaterStatus::tuning) ? colours->tuningBackColour
-						: colours->defaultBackColour;
+		Colour backgroundColour = (status == HeaterStatus::standby) ? colours->standbyBackColour
+					: (status == HeaterStatus::active) ? colours->activeBackColour
+					: (status == HeaterStatus::fault) ? colours->errorBackColour
+					: (status == HeaterStatus::tuning) ? colours->tuningBackColour
+					: colours->defaultBackColour;
+		const Colour foregroundColour =	(status == HeaterStatus::fault)
+						? colours->errorTextColour
+						: colours->infoTextColour;
 		if (currentTemps[heaterSlot] != nullptr)
 		{
-			currentTemps[heaterSlot]->SetColours((status == HeaterStatus::fault) ? colours->errorTextColour : colours->infoTextColour, c);
+			currentTemps[heaterSlot]->SetColours(foregroundColour, backgroundColour);
+			if ((int)heater == bedHeater.heater || (int)heater == chamberHeater.heater)
+			{
+				if (backgroundColour == colours->defaultBackColour)
+				{
+					backgroundColour = colours->buttonImageBackColour;
+				}
+				toolButtons[heaterSlot]->SetColours(foregroundColour, backgroundColour);
+			}
 		}
 		auto tool = OM::GetToolForHeater(heater);
 		if (tool != nullptr)
 		{
 			if (tool->index == currentTool)
 			{
-				currentTempPJog->SetColours((status == HeaterStatus::fault) ? colours->errorTextColour : colours->infoTextColour, c);
+				currentTempPJog->SetColours(foregroundColour, backgroundColour);
 			}
 			if (tool->slotP < MaxPendantTools)
 			{
-				currentTempsPJob[tool->slotP]->SetColours((status == HeaterStatus::fault) ? colours->errorTextColour : colours->infoTextColour, c);
+				currentTempsPJob[tool->slotP]->SetColours(foregroundColour, backgroundColour);
 			}
 		}
 	}
@@ -2047,6 +2088,44 @@ namespace UI
 		}
 	}
 
+	void SwitchToTab(ButtonBase *newTab)
+	{
+		switch (newTab->GetEvent()) {
+		case evTabControl:
+			mgr.SetRoot(controlRoot);
+			nameField->SetValue(machineName.c_str());
+			break;
+		case evTabPrint:
+			mgr.SetRoot(printRoot);
+			nameField->SetValue(
+					PrintInProgress() ? printingFile.c_str() : machineName.c_str());
+			break;
+		case evTabMsg:
+			mgr.SetRoot(messageRoot);
+			if (keyboardIsDisplayed) {
+				mgr.SetPopup(keyboardPopup, AutoPlace, keyboardPopupY, false);
+			}
+			break;
+		case evTabSetup:
+			mgr.SetRoot(setupRoot);
+			break;
+		case evTabJog:
+			mgr.SetRoot(pendantJogRoot);
+			break;
+		case evTabOffset:
+			mgr.SetRoot(pendantOffsetRoot);
+			break;
+		case evTabJob:
+			mgr.SetRoot(pendantJobRoot);
+			jobTextField->SetValue(PrintInProgress() ? printingFile.c_str() : strings->noJob);
+			break;
+		default:
+			mgr.SetRoot(commonRoot);
+			break;
+		}
+		mgr.Refresh(true);
+	}
+
 	// Change to the page indicated. Return true if the page has a permanently-visible button.
 	bool ChangePage(ButtonBase *newTab)
 	{
@@ -2067,43 +2146,40 @@ namespace UI
 			newTab->Press(true, 0);						// highlight the new tab
 			currentTab = newTab;
 			mgr.ClearAllPopups();
-			switch(newTab->GetEvent())
-			{
-			case evTabControl:
-				mgr.SetRoot(controlRoot);
-				nameField->SetValue(machineName.c_str());
-				break;
-			case evTabPrint:
-				mgr.SetRoot(printRoot);
-				nameField->SetValue(PrintInProgress() ? printingFile.c_str() : machineName.c_str());
-				break;
-			case evTabMsg:
-				mgr.SetRoot(messageRoot);
-				if (keyboardIsDisplayed)
-				{
-					mgr.SetPopup(keyboardPopup, AutoPlace, keyboardPopupY, false);
-				}
-				break;
-			case evTabSetup:
-				mgr.SetRoot(setupRoot);
-				break;
-			case evTabJog:
-				mgr.SetRoot(pendantJogRoot);
-				break;
-			case evTabOffset:
-				mgr.SetRoot(pendantOffsetRoot);
-				break;
-			case evTabJob:
-				mgr.SetRoot(pendantJobRoot);
-				jobTextField->SetValue(PrintInProgress() ? printingFile.c_str() : strings->noJob);
-				break;
-			default:
-				mgr.SetRoot(commonRoot);
-				break;
-			}
-			mgr.Refresh(true);
+			SwitchToTab(newTab);
 		}
 		return true;
+	}
+
+	void ActivateScreensaver()
+	{
+		lcd.fillScr(black);
+		mgr.SetRoot(screensaverRoot);
+		mgr.Refresh(true);
+		lastScreensaverMoved = SystemTick::GetTickCount();
+	}
+
+	void DeactivateScreensaver()
+	{
+		SwitchToTab(currentTab);
+	}
+
+	void AnimateScreensaver()
+	{
+		if (SystemTick::GetTickCount() - lastScreensaverMoved >= ScreensaverMoveTime)
+		{
+			static unsigned int seed = SystemTick::GetTickCount();
+			const PixelNumber width = isLandscape ? DisplayX : DisplayXP;
+			const PixelNumber height = isLandscape ? DisplayY : DisplayYP;
+			const PixelNumber availableWidth = (width - 2*margin - screensaverTextWidth);
+			const PixelNumber availableHeight = (height - 2*margin - rowTextHeight);
+			const PixelNumber x = (rand_r(&seed) % availableWidth);
+			const PixelNumber y = (rand_r(&seed) % availableHeight);
+			lcd.fillScr(black);
+			// FIXME: we need a rotated text here as well
+			screensaverText->SetPosition(x + margin, y + margin);
+			lastScreensaverMoved = SystemTick::GetTickCount();
+		}
 	}
 
 	// Pop up the keyboard
@@ -2163,8 +2239,12 @@ namespace UI
 					int newValue = ib->GetValue() + change;
 					switch(fieldBeingAdjusted.GetEvent())
 					{
-					case evAdjustActiveTemp:
-					case evAdjustStandbyTemp:
+					case evAdjustBedActiveTemp:
+					case evAdjustChamberActiveTemp:
+					case evAdjustToolActiveTemp:
+					case evAdjustBedStandbyTemp:
+					case evAdjustChamberStandbyTemp:
+					case evAdjustToolStandbyTemp:
 						newValue = constrain<int>(newValue, 0, 1600);		// some users want to print at high temperatures
 						break;
 
@@ -2350,7 +2430,7 @@ namespace UI
 					homeButtons[slot]->SetEvent(homeButtons[slot]->GetEvent(), letter);
 
 					mgr.Show(homeButtons[slot], !isDelta);
-					ShowAxis(slot, true);
+					ShowAxis(slot, true, axis->letter[0]);
 				}
 				if (IsVisibleAxisPendant(letter) > -1)
 				{
@@ -2830,8 +2910,12 @@ namespace UI
 				break;
 			}
 
-			case evAdjustActiveTemp:
-			case evAdjustStandbyTemp:
+			case evAdjustToolActiveTemp:
+			case evAdjustToolStandbyTemp:
+			case evAdjustBedActiveTemp:
+			case evAdjustBedStandbyTemp:
+			case evAdjustChamberActiveTemp:
+			case evAdjustChamberStandbyTemp:
 				if (static_cast<IntegerButton*>(f)->GetValue() < 0)
 				{
 					static_cast<IntegerButton*>(f)->SetValue(0);
@@ -2898,53 +2982,56 @@ namespace UI
 				if (fieldBeingAdjusted.IsValid())
 				{
 					int val = static_cast<const IntegerButton*>(fieldBeingAdjusted.GetButton())->GetValue();
-					switch(fieldBeingAdjusted.GetEvent())
+				const event_t eventOfFieldBeingAdjusted =
+						fieldBeingAdjusted.GetEvent();
+				switch (eventOfFieldBeingAdjusted)
 					{
-					case evAdjustActiveTemp:
+					case evAdjustBedActiveTemp:
+					case evAdjustChamberActiveTemp:
 						{
-							int heater = fieldBeingAdjusted.GetIParam();
-							if (heater == bedHeater.heater || heater == chamberHeater.heater)
-							{
-								SerialIo::SendString("M14");
-								SerialIo::SendInt(heater == bedHeater.heater ? 0 : 1);
-								SerialIo::SendString(" P");
-								SerialIo::SendInt(((heater == bedHeater.heater) ? bedHeater : chamberHeater).index);
-								SerialIo::SendString(" S");
-								SerialIo::SendInt(val);
-								SerialIo::SendChar('\n');
-							}
-							else
-							{
-								SerialIo::SendString(((GetFirmwareFeatures() & noG10Temps) == 0) ? "G10 P" : "M104 T");
-								SerialIo::SendInt(heater);
-								SerialIo::SendString(" S");
-								SerialIo::SendInt(val);
-								SerialIo::SendChar('\n');
-							}
+							const bool isBed = eventOfFieldBeingAdjusted == evAdjustBedActiveTemp;
+							SerialIo::SendString("M14");
+							SerialIo::SendInt(isBed ? 0 : 1);
+							SerialIo::SendString(" P");
+							SerialIo::SendInt((isBed ? bedHeater : chamberHeater).index);
+							SerialIo::SendString(" S");
+							SerialIo::SendInt(val);
+							SerialIo::SendChar('\n');
+						}
+						break;
+					case evAdjustToolActiveTemp:
+						{
+							int toolNumber = fieldBeingAdjusted.GetIParam();
+							SerialIo::SendString(((GetFirmwareFeatures() & noG10Temps) == 0) ? "G10 P" : "M104 T");
+							SerialIo::SendInt(toolNumber);
+							SerialIo::SendString(" S");
+							SerialIo::SendInt(val);
+							SerialIo::SendChar('\n');
 						}
 						break;
 
-					case evAdjustStandbyTemp:
+					case evAdjustBedStandbyTemp:
+					case evAdjustChamberStandbyTemp:
 						{
-							int heater = fieldBeingAdjusted.GetIParam();
-							if (heater == bedHeater.heater || heater == chamberHeater.heater)
-							{
-								SerialIo::SendString("M14");
-								SerialIo::SendInt(heater == bedHeater.heater ? 0 : 1);
-								SerialIo::SendString(" P");
-								SerialIo::SendInt(((heater == bedHeater.heater) ? bedHeater : chamberHeater).index);
-								SerialIo::SendString(" R");
-								SerialIo::SendInt(val);
-								SerialIo::SendChar('\n');
-							}
-							else
- 							{
-								SerialIo::SendString("G10 P");
-								SerialIo::SendInt(heater);
-								SerialIo::SendString(" R");
-								SerialIo::SendInt(val);
-								SerialIo::SendChar('\n');
-							}
+							const bool isBed = eventOfFieldBeingAdjusted == evAdjustBedStandbyTemp;
+							SerialIo::SendString("M14");
+							SerialIo::SendInt(isBed ? 0 : 1);
+							SerialIo::SendString(" P");
+							SerialIo::SendInt((isBed ? bedHeater : chamberHeater).index);
+							SerialIo::SendString(" R");
+							SerialIo::SendInt(val);
+							SerialIo::SendChar('\n');
+						}
+						break;
+
+					case evAdjustToolStandbyTemp:
+						{
+							int toolNumber = fieldBeingAdjusted.GetIParam();
+							SerialIo::SendString("G10 P");
+							SerialIo::SendInt(toolNumber);
+							SerialIo::SendString(" R");
+							SerialIo::SendInt(val);
+							SerialIo::SendChar('\n');
 						}
 						break;
 
@@ -3011,8 +3098,12 @@ namespace UI
 					int newValue = ib->GetValue() + bp.GetIParam();
 					switch(fieldBeingAdjusted.GetEvent())
 					{
-					case evAdjustActiveTemp:
-					case evAdjustStandbyTemp:
+					case evAdjustToolActiveTemp:
+					case evAdjustToolStandbyTemp:
+					case evAdjustBedActiveTemp:
+					case evAdjustBedStandbyTemp:
+					case evAdjustChamberActiveTemp:
+					case evAdjustChamberStandbyTemp:
 						newValue = constrain<int>(newValue, 0, 1600);		// some users want to print at high temperatures
 						break;
 
@@ -3042,15 +3133,11 @@ namespace UI
 			case evMoveAxis:
 			case evMoveAxisP:
 				{
-					auto axis = OM::FindAxis([&bp](OM::Axis* axis) { return bp.GetEvent() == evMoveAxisP ? axis->slotP == bp.GetIParam() :  axis->slot == bp.GetIParam(); });
-					if (axis == nullptr)
-					{
-						break;
-					}
-					SerialIo::SendString("G91\nG1 ");
-					SerialIo::SendChar(axis->letter[0]);
+					TextButtonForAxis *textButton = static_cast<TextButtonForAxis*>(bp.GetButton());
+					SerialIo::SendString("G91 G1 ");
+					SerialIo::SendChar(textButton->GetAxisLetter());
 					SerialIo::SendString(bp.GetSParam());
-					SerialIo::SendString(" F6000\nG90\n");
+					SerialIo::SendString(" F6000 G90\n");
 				}
 				break;
 
@@ -3190,7 +3277,7 @@ namespace UI
 					SerialIo::SendString(" S");
 					if (heaterStatus[slot] == HeaterStatus::active)			// if chamber is active
 					{
-						SerialIo::SendString(" S-273.15\n");
+						SerialIo::SendString("-273.15\n");
 					}
 					else
 					{
@@ -3380,6 +3467,11 @@ namespace UI
 				mgr.SetPopup(infoTimeoutPopup, AutoPlace, popupY);
 				break;
 
+			case evSetScreensaverTimeout:
+				Adjusting(bp);
+				mgr.SetPopup(screensaverTimeoutPopup, AutoPlace, popupY);
+				break;
+
 			case evSetColours:
 				if (coloursPopup != nullptr)
 				{
@@ -3408,6 +3500,15 @@ namespace UI
 					infoTimeout = bp.GetIParam();
 					SetInfoTimeout(infoTimeout);
 					infoTimeoutButton->SetValue(infoTimeout);
+				}
+				TouchBeep();									// give audible feedback of the touch at the new volume level
+				break;
+
+			case evAdjustScreensaverTimeout:
+				{
+					uint32_t screensaverTimeout = bp.GetIParam();
+					SetScreensaverTimeout(screensaverTimeout * 1000);
+					screensaverTimeoutButton->SetValue(screensaverTimeout);
 				}
 				TouchBeep();									// give audible feedback of the touch at the new volume level
 				break;
@@ -3590,8 +3691,12 @@ namespace UI
 				StopAdjusting();
 				break;
 
-			case evAdjustActiveTemp:
-			case evAdjustStandbyTemp:
+			case evAdjustToolActiveTemp:
+			case evAdjustToolStandbyTemp:
+			case evAdjustBedActiveTemp:
+			case evAdjustBedStandbyTemp:
+			case evAdjustChamberActiveTemp:
+			case evAdjustChamberStandbyTemp:
 			case evAdjustActiveRPM:
 			case evSetBaudRate:
 			case evSetVolume:
@@ -3828,8 +3933,8 @@ namespace UI
 			toolButtons[slot]->SetIcon(IconBed);
 			toolButtons[slot]->SetIntVal(bedHeater.index);	// Remove the line below if we want to show the bed number
 			toolButtons[slot]->SetPrintText(false);
-			activeTemps[slot]->SetEvent(evAdjustActiveTemp, bedHeater.heater);
-			standbyTemps[slot]->SetEvent(standbyTemps[slot]->GetEvent(), bedHeater.heater);
+			activeTemps[slot]->SetEvent(evAdjustBedActiveTemp, bedHeater.heater);
+			standbyTemps[slot]->SetEvent(evAdjustBedStandbyTemp, bedHeater.heater);
 			++slot;
 
 			bedHeater.slotP = slotP;
@@ -3841,8 +3946,8 @@ namespace UI
 			toolButtonsPJob[slotP]->SetIcon(IconChamber);
 			toolButtonsPJob[slotP]->SetIntVal(bedHeater.index);	// Remove the line below if we want to show the bed number
 			toolButtonsPJob[slotP]->SetPrintText(false);
-			activeTempsPJob[slotP]->SetEvent(evAdjustActiveTemp, bedHeater.heater);
-			standbyTempsPJob[slotP]->SetEvent(standbyTempsPJob[slotP]->GetEvent(), bedHeater.heater);
+			activeTempsPJob[slotP]->SetEvent(evAdjustBedActiveTemp, bedHeater.heater);
+			standbyTempsPJob[slotP]->SetEvent(evAdjustBedStandbyTemp, bedHeater.heater);
 			++slotP;
 		}
 		OM::IterateTools([&slot, &slotP](OM::Tool* tool)
@@ -3850,6 +3955,8 @@ namespace UI
 			tool->slot = slot;
 			const bool hasHeater = tool->heater > -1;
 			const bool hasSpindle = tool->spindle != nullptr;
+			const event_t evForActive = hasHeater ? evAdjustToolActiveTemp : hasSpindle ? evAdjustActiveRPM : evNull;
+			const int evActiveParam = hasSpindle ? tool->spindle->index : tool->index;
 			if (slot < MaxHeaters)
 			{
 				toolButtons[slot]->SetEvent(evSelectHead, tool->index);
@@ -3863,11 +3970,8 @@ namespace UI
 				mgr.Show(extrusionFactors[slot], hasHeater);
 
 				// Set tool number for change event
-				const event_t evForActive = hasHeater ? evAdjustActiveTemp : hasSpindle ? evAdjustActiveRPM : evNull;
-				const int evActiveParam = hasSpindle ? tool->spindle->index : tool->index;
-
 				activeTemps[slot]->SetEvent(evForActive, evActiveParam);
-				standbyTemps[slot]->SetEvent(standbyTemps[slot]->GetEvent(), tool->index);
+				standbyTemps[slot]->SetEvent(evAdjustToolStandbyTemp, tool->index);
 				++slot;
 			}
 			tool->slotP = slotP;
@@ -3909,11 +4013,8 @@ namespace UI
 				mgr.Show(standbyTempsPJob[slotP], hasHeater);
 
 				// Set tool/spindle number for change event
-				const event_t evForActive = hasHeater ? evAdjustActiveTemp : hasSpindle ? evAdjustActiveRPM : evNull;
-				const int evActiveParam = hasSpindle ? tool->spindle->index : tool->index;
-
 				activeTempsPJob[slotP]->SetEvent(evForActive, evActiveParam);
-				standbyTempsPJob[slotP]->SetEvent(standbyTempPJog->GetEvent(), tool->index);
+				standbyTempsPJob[slotP]->SetEvent(evAdjustToolStandbyTemp, tool->index);
 				++slotP;
 			}
 		});
@@ -3929,8 +4030,8 @@ namespace UI
 			toolButtons[slot]->SetIcon(IconChamber);
 			toolButtons[slot]->SetIntVal(chamberHeater.index);	// Remove the line below if we want to show the chamber number
 			toolButtons[slot]->SetPrintText(false);
-			activeTemps[slot]->SetEvent(evAdjustActiveTemp, chamberHeater.heater);
-			standbyTemps[slot]->SetEvent(standbyTemps[slot]->GetEvent(), chamberHeater.heater);
+			activeTemps[slot]->SetEvent(evAdjustChamberActiveTemp, chamberHeater.heater);
+			standbyTemps[slot]->SetEvent(evAdjustChamberStandbyTemp, chamberHeater.heater);
 			++slot;
 		}
 		chamberHeater.slotP = MaxPendantTools;
@@ -3945,8 +4046,8 @@ namespace UI
 			toolButtonsPJob[slotP]->SetIcon(IconChamber);
 			toolButtonsPJob[slotP]->SetIntVal(chamberHeater.index);	// Remove the line below if we want to show the chamber number
 			toolButtonsPJob[slotP]->SetPrintText(false);
-			activeTempsPJob[slotP]->SetEvent(evAdjustActiveTemp, chamberHeater.heater);
-			standbyTempsPJob[slotP]->SetEvent(standbyTempsPJob[slotP]->GetEvent(), chamberHeater.heater);
+			activeTempsPJob[slotP]->SetEvent(evAdjustChamberActiveTemp, chamberHeater.heater);
+			standbyTempsPJob[slotP]->SetEvent(evAdjustChamberStandbyTemp, chamberHeater.heater);
 			++slotP;
 		}
 		numToolColsUsed = slot;
@@ -3968,7 +4069,7 @@ namespace UI
 		AdjustControlPageMacroButtons();
 	}
 
-	void SetSpindleActive(size_t index, float active)
+	void SetSpindleActive(size_t index, uint16_t active)
 	{
 		auto spindle = OM::GetOrCreateSpindle(index);
 		spindle->active = active;
@@ -3993,7 +4094,7 @@ namespace UI
 		}
 	}
 
-	void SetSpindleCurrent(size_t index, float current)
+	void SetSpindleCurrent(size_t index, uint16_t current)
 	{
 		auto spindle = OM::GetOrCreateSpindle(index);
 		if (spindle->tool > -1)
@@ -4018,7 +4119,7 @@ namespace UI
 		}
 	}
 
-	void SetSpindleMax(size_t index, float max)
+	void SetSpindleMax(size_t index, uint16_t max)
 	{
 		OM::GetOrCreateSpindle(index)->max = max;
 	}
@@ -4027,8 +4128,8 @@ namespace UI
 	{
 		auto tool = OM::GetTool(toolIndex);
 		tool->status = status;
-		Colour c = (status == ToolStatus::standby) ? colours->standbyBackColour
-					: (status == ToolStatus::active) ? colours->activeBackColour
+		Colour c = /*(status == ToolStatus::standby) ? colours->standbyBackColour : */
+					(status == ToolStatus::active) ? colours->activeBackColour
 					: colours->buttonImageBackColour;
 		if (tool->slot < MaxHeaters)
 		{

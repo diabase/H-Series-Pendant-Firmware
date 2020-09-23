@@ -66,6 +66,7 @@ struct StringTable
 	CSTRING clearSettings;
 	CSTRING saveAndRestart;
 	CSTRING infoTimeout;
+	CSTRING screensaverAfter;
 
 	// Pendant root
 	CSTRING backToNormal;
@@ -140,6 +141,7 @@ struct StringTable
 
 	// Display dimmer types
 	CSTRING displayDimmingNames[(unsigned int)DisplayDimmerType::NumTypes];
+
 };
 
 const StringTable LanguageTables[NumLanguages] =
@@ -190,6 +192,7 @@ const StringTable LanguageTables[NumLanguages] =
 		"Clear settings",
 		"Save & Restart",
 		"Info timeout ",					// note space at end
+		"Screensaver ",						// note space at end
 
 		// Pendant root
 		"Panel",
@@ -335,6 +338,7 @@ const StringTable LanguageTables[NumLanguages] =
 		"Werks-Reset",
 		"Sichern & Reboot",
 		"Info timeout ",					// note space at end
+		"Screensaver ",						// note space at end
 
 		// Pendant root
 		"Panel",
@@ -479,6 +483,7 @@ const StringTable LanguageTables[NumLanguages] =
 		"Effacer paramêtres",
 		"Sauvegarde & Redémarrage",
 		"Info timeout ",						// note space at end
+		"Screensaver ",							// note space at end
 
 		// Pendant root
 		"Panel",
@@ -623,6 +628,7 @@ const StringTable LanguageTables[NumLanguages] =
 		"Borrar parámetros",
 		"Guardar y Reiniciar",
 		"Info timeout ",					// note space at end
+		"Screensaver ",						// note space at end
 
 		// Pendant root
 		"Panel",
@@ -767,6 +773,7 @@ const StringTable LanguageTables[NumLanguages] =
 		"Smazat nastavení",
 		"Uložit a Restart",
 		"Info timeout ",					// note space at end
+		"Screensaver ",						// note space at end
 
 		// Pendant root
 		"Panel",
