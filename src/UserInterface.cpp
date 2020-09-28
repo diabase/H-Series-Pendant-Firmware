@@ -58,7 +58,7 @@ static TextButton *controlPageMacroButtons[NumControlPageMacroButtons];
 static String<controlPageMacroTextLength> controlPageMacroText[NumControlPageMacroButtons];
 
 static PopupWindow *setTempPopup, *setRPMPopup, *movePopup, *extrudePopup, *fileListPopup, *macrosPopup, *fileDetailPopup, *baudPopup,
-		*volumePopup, *infoTimeoutPopup, *screensaverTimeoutPopup, *areYouSurePopup, *keyboardPopup, *languagePopup, *coloursPopup;
+		*volumePopup, *infoTimeoutPopup, *screensaverTimeoutPopup, *areYouSurePopup, *keyboardPopup, *languagePopup, *coloursPopup, *screensaverPopup;
 #ifdef SUPPORT_ENCODER
 static PopupWindow *setTempPopupEncoder, *macrosPopupP;
 #endif
@@ -67,7 +67,7 @@ static PopupWindow *areYouSurePopupP, *extrudePopupP, *wcsOffsetsPopup;
 static FloatButton* wcsOffsetPos[ARRAY_SIZE(jogAxes)];
 static IconButton* wcsSetToCurrent[ARRAY_SIZE(jogAxes)];
 static StaticTextField *areYouSureTextFieldP, *areYouSureQueryFieldP;
-static DisplayField *emptyRoot, *baseRoot, *commonRoot, *controlRoot, *printRoot, *messageRoot, *setupRoot, *screensaverRoot,
+static DisplayField *emptyRoot, *baseRoot, *commonRoot, *controlRoot, *printRoot, *messageRoot, *setupRoot,
 		*pendantBaseRoot, *pendantJogRoot, *pendantOffsetRoot, *pendantJobRoot;
 static SingleButton *homeAllButton, *bedCompButton;
 static IconButtonWithText *homeButtons[MaxDisplayableAxes], *toolButtons[MaxHeaters];
@@ -814,6 +814,8 @@ void CreateWCSOffsetsPopup(const ColourScheme& colours)
 		wcsOffsetsPopup->AddField(wcsSetToCurrent[i] = new IconButton(ypos, CalcXPos(2, width, popupSideMargin), width, IconSetToCurrent, evSetAxesOffsetToCurrent, jogAxes[i]));
 		ypos += buttonHeight + fieldSpacing;
 	}
+	ypos += buttonHeight + fieldSpacing;
+
 }
 
 
@@ -941,6 +943,18 @@ void CreateAreYouSurePopupPortrait(const ColourScheme& colours)
 	DisplayField::SetDefaultColours(colours.popupButtonTextColour, colours.popupButtonBackColour);
 	areYouSurePopupP->AddField(new IconButton(popupTopMargin + 2 * rowHeight, popupSideMargin, areYouSurePopupWidthP/2 - 2 * popupSideMargin, IconOk, evYes));
 	areYouSurePopupP->AddField(new IconButton(popupTopMargin + 2 * rowHeight, areYouSurePopupWidthP/2 + 10, areYouSurePopupWidthP/2 - 2 * popupSideMargin, IconCancel, evCancel));
+}
+
+void CreateScreensaverPopup()
+{
+	screensaverPopup = new PopupWindow(DisplayY, DisplayX, black, black);
+	DisplayField::SetDefaultColours(white, black);
+	static const char * text = "Touch to wake up";
+	screensaverTextWidth = DisplayField::GetTextWidth(text, DisplayX);
+	screensaverPopup->AddField(screensaverText = new StaticTextField(row1, margin, screensaverTextWidth, TextAlignment::Left, text));
+	PortraitDisplay(false);
+	screensaverPopup->AddField(screensaverTextP = new StaticTextField(row1, margin, screensaverTextWidth, TextAlignment::Left, text));
+	LandscapeDisplay(false);
 }
 
 
@@ -1620,19 +1634,6 @@ void CreateCommonFields(const ColourScheme& colours)
 	tabSetup = AddTextButton(rowTabs, 4, 5, strings->setup, evTabSetup, nullptr);
 }
 
-void CreateScreensaverRoot()
-{
-	mgr.SetRoot(emptyRoot);
-	DisplayField::SetDefaultColours(white, black);
-	static const char * text = "Touch to wake up";
-	screensaverTextWidth = DisplayField::GetTextWidth(text, DisplayX);
-	mgr.AddField(screensaverText = new StaticTextField(row1, margin, screensaverTextWidth, TextAlignment::Left, text));
-	PortraitDisplay(false);
-	mgr.AddField(screensaverTextP = new StaticTextField(row1, margin, screensaverTextWidth, TextAlignment::Left, text));
-	LandscapeDisplay(false);
-	screensaverRoot = mgr.GetRoot();
-}
-
 void CreateMainPages(uint32_t language, const ColourScheme& colours)
 {
 	if (language >= ARRAY_SIZE(LanguageTables))
@@ -1656,7 +1657,7 @@ void CreateMainPages(uint32_t language, const ColourScheme& colours)
 	CreatePrintingTabFields(colours);
 	CreateMessageTabFields(colours);
 	CreateSetupTabFields(language, colours);
-	CreateScreensaverRoot();
+	CreateScreensaverPopup();
 }
 
 namespace UI
@@ -2157,16 +2158,15 @@ namespace UI
 	void ActivateScreensaver()
 	{
 		lcd.fillScr(black);
-		mgr.SetRoot(screensaverRoot);
 		screensaverText->Show(isLandscape);
 		screensaverTextP->Show(!isLandscape);
-		mgr.Refresh(true);
+		mgr.SetPopup(screensaverPopup);
 		lastScreensaverMoved = SystemTick::GetTickCount();
 	}
 
 	void DeactivateScreensaver()
 	{
-		SwitchToTab(currentTab);
+		mgr.ClearPopup(true, screensaverPopup);
 	}
 
 	void AnimateScreensaver()
@@ -2587,6 +2587,7 @@ namespace UI
 	// Process a new message box alert, clearing any existing one
 	void ProcessAlert(const Alert& alert)
 	{
+		RestoreBrightness();
 		if (isLandscape)
 		{
 			alertPopup->Set(alert.title.c_str(), alert.text.c_str(), alert.mode, alert.controls);
@@ -2597,7 +2598,6 @@ namespace UI
 			alertPopupP->Set(alert.title.c_str(), alert.text.c_str(), alert.mode, alert.controls);
 			mgr.SetPopupP(alertPopupP, AutoPlace, AutoPlace);
 		}
-		RestoreBrightness();
 		alertMode = alert.mode;
 		displayingResponse = false;
 		whenAlertReceived = SystemTick::GetTickCount();
@@ -2634,6 +2634,7 @@ namespace UI
 
 	void ProcessSimpleAlert(const char* array text)
 	{
+		RestoreBrightness();
 		if (alertMode < 2)												// if the current alert doesn't require acknowledgement
 		{
 			if (isLandscape)
@@ -2651,7 +2652,6 @@ namespace UI
 			whenAlertReceived = SystemTick::GetTickCount();
 			alertTicks = 0;												// no timeout
 		}
-		RestoreBrightness();
 	}
 
 	// Process a new response. This is treated like a simple alert except that it times out and isn't cleared by a "clear alert" command from the host.
@@ -2663,6 +2663,7 @@ namespace UI
 			&& (isErrorMessage || infoTimeout != 0)
 		   )
 		{
+			RestoreBrightness();
 			if (isLandscape)
 			{
 				alertPopup->Set(strings->response, text, 1, 0);

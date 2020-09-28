@@ -1077,7 +1077,7 @@ void SetStatus(const char * sts)
 
 	if (newStatus != status)
 	{
-		if (GetDisplayDimmerType() != DisplayDimmerType::always)
+		if (GetDisplayDimmerType() != DisplayDimmerType::always || screensaverActive)
 		{
 			RestoreBrightness();
 		}
