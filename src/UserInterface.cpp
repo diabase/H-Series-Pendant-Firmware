@@ -2919,8 +2919,8 @@ namespace UI
 				cmd.printf("G10 L1 P%d %s M500 P10\n",
 						currentTool,
 						bp.GetIParam() == 0
-							? "X{move.axes[0].userPosition} Y{move.axes[1].userPosition}"
-							: "Z{move.axes[2].userPosition}");
+							? "X-{move.axes[0].userPosition} Y-{move.axes[1].userPosition}"
+							: "Z-{move.axes[2].userPosition}");
 				SerialIo::SendString(cmd.c_str());
 				break;
 			}
