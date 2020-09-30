@@ -319,6 +319,7 @@ enum ReceivedDataEvent
 
 	// Keys for network response
 	rcvNetworkName,
+	rcvNetworkInterfacesActualIP,
 
 	// Keys for spindles respons
 	rcvSpindlesActive,
@@ -423,6 +424,7 @@ static FieldTableEntry fieldTable[] =
 
 	// M409 K"network" response
 	{ rcvNetworkName, 					"result:name" },
+	{ rcvNetworkInterfacesActualIP,		"result:interfaces^:actualIP" },
 
 	// M409 K"spindles" response
 	{ rcvSpindlesActive, 				"result^:active" },
@@ -1901,6 +1903,16 @@ void ProcessReceivedValue(const char id[], const char data[], const size_t indic
 		if (status != PrinterStatus::configuring && status != PrinterStatus::connecting)
 		{
 			UI::UpdateMachineName(data);
+		}
+		break;
+	case rcvNetworkInterfacesActualIP:
+		{
+			// Only look at the first valid IP
+			if (indices[0] > 0)
+			{
+				return;
+			}
+			UI::UpdateIP(data);
 		}
 		break;
 

@@ -25,7 +25,7 @@
 #include "ObjectModel.hpp"
 
 // Public fields
-TextField *fwVersionField, *userCommandField;
+TextField *fwVersionField, *userCommandField, *ipAddressField;
 IntegerField *freeMem;
 StaticTextField *touchCalibInstruction, *debugField;
 StaticTextField *messageTextFields[numMessageRows], *messageTimeFields[numMessageRows];
@@ -41,6 +41,7 @@ const size_t generatedByTextLength = 50;
 const size_t lastModifiedTextLength = 20;
 const size_t printTimeTextLength = 12;		// e.g. 11h 55m
 const size_t controlPageMacroTextLength = 50;
+const size_t ipAddressLength = 45;	// IPv4 needs max 15 but IPv6 can go up to 45
 
 struct FileListButtons
 {
@@ -122,6 +123,7 @@ static String<zprobeBufLength> zprobeBuf;
 static String<generatedByTextLength> generatedByText;
 static String<lastModifiedTextLength> lastModifiedText;
 static String<printTimeTextLength> printTimeText;
+static String<ipAddressLength> ipAddress;
 
 const size_t maxUserCommandLength = 40;					// max length of a user gcode command
 const size_t numUserCommandBuffers = 6;					// number of command history buffers plus one
@@ -1340,6 +1342,7 @@ void CreateSetupTabFields(uint32_t language, const ColourScheme& colours)
 	AddTextButton(row6, 2, 3, strings->clearSettings, evFactoryReset, nullptr);
 	screensaverTimeoutButton = AddIntegerButton(row7, 0, 3, strings->screensaverAfter, nullptr, evSetScreensaverTimeout);
 	screensaverTimeoutButton->SetValue(GetScreensaverTimeout() / 1000);
+	mgr.AddField(ipAddressField = new TextField(row9, margin, DisplayX/2 - margin, TextAlignment::Left, "IP: ", ipAddress.c_str()));
 	setupRoot = mgr.GetRoot();
 }
 
@@ -2510,6 +2513,13 @@ namespace UI
 		machineName.copy(data);
 		nameField->SetChanged();
 		pNameField->SetChanged();
+	}
+
+	// Update the IP address fiels on Setup tab
+	void UpdateIP(const char data[])
+	{
+		ipAddress.copy(data);
+		ipAddressField->SetChanged();
 	}
 
 	// Update the fan RPM

@@ -50,6 +50,7 @@ namespace UI
 	extern void UpdateHomedStatus(size_t axis, bool isHomed);
 	extern void UpdateZProbe(const char data[]);
 	extern void UpdateMachineName(const char data[]);
+	extern void UpdateIP(const char data[]);
 	extern void ProcessAlert(const Alert& alert);
 	extern void ClearAlert();
 	extern void ProcessSimpleAlert(const char* array text);
