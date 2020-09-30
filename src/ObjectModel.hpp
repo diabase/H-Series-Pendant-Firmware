@@ -11,8 +11,13 @@
 #include <cstdint>
 
 #undef array
+#undef vsnprintf
+#undef snprintf
 #include <functional>
 #define array _ecv_array // Reinstate the eCv definitions of 'array'
+// Also reinstate the safeguards against using the wrong *snprintf versions
+#define vsnprintf(b, m, f, a) static_assert(false, "Do not use vsnprintf, use SafeVsnprintf instead")
+#define snprintf(b, m, f, ...) static_assert(false, "Do not use snprintf, use SafeSnprintf instead")
 
 #include "ToolStatus.hpp"
 #include "UserInterfaceConstants.hpp"
@@ -78,6 +83,8 @@ namespace OM {
 		// Slot for display on panel
 		uint8_t slot = MaxHeaters;
 		uint8_t slotP = MaxPendantTools;
+
+		void Reset() { index = 0; heater = -1; slot = MaxHeaters; }
 	};
 
 	Axis* FindAxis(std::function<bool(Axis*)> filter);
