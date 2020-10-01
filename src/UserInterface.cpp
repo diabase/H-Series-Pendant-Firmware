@@ -1945,6 +1945,11 @@ namespace UI
 		{
 			currentTempPJog->SetValue(0);
 			currentTempPJog->SetColours(colours->infoTextColour, colours->defaultBackColour);
+			mgr.Show(currentTempPJog, false);
+			mgr.Show(activeTempPJog, false);
+			mgr.Show(standbyTempPJog, false);
+			mgr.Show(pExtruderPercentButton, false);
+			mgr.Show(pSpindleRPMButton, false);
 			UpdateField(activeTempPJog, 0);
 			UpdateField(standbyTempPJog, 0);
 			UpdateField(pSpindleRPMButton, 0);
@@ -1955,10 +1960,13 @@ namespace UI
 			if (tool != nullptr)
 			{
 				const bool hasHeater = tool->heater > -1;
+				const bool hasExtruder = tool->extruder > -1;
 				const bool hasSpindle = tool->spindle != nullptr;
 				mgr.Show(currentTempPJog, hasHeater || hasSpindle);
 				mgr.Show(activeTempPJog, hasHeater || hasSpindle);
 				mgr.Show(standbyTempPJog, hasHeater);
+				mgr.Show(pExtruderPercentButton, hasExtruder);
+				mgr.Show(pSpindleRPMButton, hasSpindle);
 				standbyTempPJog->SetEvent(standbyTempPJog->GetEvent(), tool->index);
 
 				// We rarely see updates of this value so update it here
@@ -1966,10 +1974,12 @@ namespace UI
 				{
 					UpdateField(activeTempPJog, tool->spindle->active);
 					activeTempPJog->SetEvent(evAdjustActiveRPM, tool->spindle->index);
+					pSpindleRPMButton->SetEvent(evAdjustActiveRPM, tool->spindle->index);
 				}
 				else
 				{
 					UpdateField(pSpindleRPMButton, 0);
+					activeTempPJog->SetEvent(evAdjustToolActiveTemp, tool->index);
 				}
 			}
 		}
@@ -2247,6 +2257,7 @@ namespace UI
 		// There is a pop-up - we will exit here after possibly doing something
 		if (popup != nullptr)
 		{
+			// Oh wait the pop-up is the Set button
 			if (popup == setTempPopupEncoder)
 			{
 				if (fieldBeingAdjusted.IsValid())
@@ -2274,9 +2285,9 @@ namespace UI
 
 					case evAdjustActiveRPM:
 						{
+							static const uint8_t spindleRpmMultiplier = 100;
 							auto spindle = OM::GetSpindle(fieldBeingAdjusted.GetIParam());
-							static const int spindleRpmMultiplier = 100;
-							static const int maxSpindleRpm = spindle->max;
+							const int maxSpindleRpm = spindle->max;
 							newValue = constrain<int>((newValue - change) + (change * spindleRpmMultiplier), -maxSpindleRpm, maxSpindleRpm);
 						}
 						break;
@@ -2965,7 +2976,7 @@ namespace UI
 				Adjusting(bp);
 				if (isLandscape)
 				{
-					mgr.SetPopup(setTempPopup, AutoPlace, popupY);
+					mgr.SetPopup(setRPMPopup, AutoPlace, popupY);
 				}
 				else
 				{
@@ -3006,9 +3017,8 @@ namespace UI
 				if (fieldBeingAdjusted.IsValid())
 				{
 					int val = static_cast<const IntegerButton*>(fieldBeingAdjusted.GetButton())->GetValue();
-				const event_t eventOfFieldBeingAdjusted =
-						fieldBeingAdjusted.GetEvent();
-				switch (eventOfFieldBeingAdjusted)
+					const event_t eventOfFieldBeingAdjusted = fieldBeingAdjusted.GetEvent();
+					switch (eventOfFieldBeingAdjusted)
 					{
 					case evAdjustBedActiveTemp:
 					case evAdjustChamberActiveTemp:
@@ -3946,6 +3956,22 @@ namespace UI
 	{
 		size_t slot = 0;
 		size_t slotP = 0;
+
+		// Hard-code the probe in the first slot
+		auto probeTool = OM::GetTool(ProbeToolIndex);
+		if (probeTool != nullptr)
+		{
+			probeTool->slotP = slotP;
+			toolSelectButtons[slotP]->SetEvent(evSelectHead, ProbeToolIndex);
+			toolSelectButtons[slotP]->SetIntVal(ProbeToolIndex);
+			toolSelectButtons[slotP]->SetPrintText(true);
+			toolSelectButtons[slotP]->SetText(strings->probe);
+			toolSelectButtons[slotP]->SetDrawIcon(false);
+			mgr.Show(toolSelectButtons[slotP], true);
+			// FIXME: this leads to an empty row in the Job heat table
+			++slotP;
+		}
+
 		bedHeater.slot = MaxHeaters;
 		bedHeater.slotP = MaxPendantTools;
 		if (bedHeater.heater > -1)
@@ -4003,7 +4029,7 @@ namespace UI
 				++slot;
 			}
 			tool->slotP = slotP;
-			if (slotP < MaxPendantTools)
+			if (slotP < MaxPendantTools && tool->index != ProbeToolIndex)
 			{
 				toolSelectButtons[slotP]->SetEvent(evSelectHead, tool->index);
 				toolSelectButtons[slotP]->SetIntVal(tool->index);
@@ -4013,28 +4039,15 @@ namespace UI
 				toolButtonsPJob[slotP]->SetIntVal(tool->index);
 				toolButtonsPJob[slotP]->SetPrintText(true);
 
-				// Special handling for T10 (Probe)
-				if (tool->index == 10)
-				{
-					toolSelectButtons[slotP]->SetText(strings->probe);
-					toolSelectButtons[slotP]->SetDrawIcon(false);
+				toolSelectButtons[slotP]->SetText(nullptr);
+				toolSelectButtons[slotP]->SetIcon(hasSpindle ? IconSpindle : IconNozzle);
+				toolSelectButtons[slotP]->SetDrawIcon(true);
 
-					toolButtonsPJob[slotP]->SetText(strings->probe);
-					toolButtonsPJob[slotP]->SetDrawIcon(false);
-				}
-				else
-				{
-					toolSelectButtons[slotP]->SetText(nullptr);
-					toolSelectButtons[slotP]->SetIcon(hasSpindle ? IconSpindle : IconNozzle);
-					toolSelectButtons[slotP]->SetDrawIcon(true);
+				toolButtonsPJob[slotP]->SetText(nullptr);
+				toolButtonsPJob[slotP]->SetIcon(hasSpindle ? IconSpindle : IconNozzle);
+				toolButtonsPJob[slotP]->SetDrawIcon(true);
 
-					toolButtonsPJob[slotP]->SetText(nullptr);
-					toolButtonsPJob[slotP]->SetIcon(hasSpindle ? IconSpindle : IconNozzle);
-					toolButtonsPJob[slotP]->SetDrawIcon(true);
-				}
 				mgr.Show(toolSelectButtons[slotP], true);
-
-				// FIXME: this leads to empty rows if a tool has neither heater nor spindle
 				mgr.Show(toolButtonsPJob[slotP], hasHeater || hasSpindle);
 				mgr.Show(currentTempsPJob[slotP], hasHeater || hasSpindle);
 				mgr.Show(activeTempsPJob[slotP], hasHeater || hasSpindle);
@@ -4166,8 +4179,8 @@ namespace UI
 		}
 		if (tool->slotP < MaxPendantTools)
 		{
-			toolSelectButtons[tool->slot]->SetColours(colours->buttonTextColour, c);
-			toolButtonsPJob[tool->slot]->SetColours(colours->buttonTextColour, c);
+			toolSelectButtons[tool->slotP]->SetColours(colours->buttonTextColour, c);
+			toolButtonsPJob[tool->slotP]->SetColours(colours->buttonTextColour, c);
 		}
 	}
 
