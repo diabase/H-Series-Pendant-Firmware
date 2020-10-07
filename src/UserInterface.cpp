@@ -77,7 +77,7 @@ static FloatField *controlTabAxisPos[MaxDisplayableAxes];
 static FloatField *printTabAxisPos[MaxDisplayableAxes];
 static FloatField *movePopupAxisPos[MaxDisplayableAxes];
 static FloatField *jogTabAxisPos[MaxDisplayableAxesP], *jobTabAxisPos[MaxDisplayableAxesP];
-static IconButtonWithText *toolSelectButtons[MaxPendantTools], *toolButtonsPJob[MaxPendantTools];
+static IconButtonWithText *toolSelectButtonsPJog[MaxPendantTools], *toolButtonsPJob[MaxPendantTools];
 static FloatField *currentTemps[MaxHeaters];
 static FloatField *currentTempPJog;
 static FloatField *currentTempsPJob[MaxPendantTools];
@@ -949,7 +949,7 @@ void CreateAreYouSurePopupPortrait(const ColourScheme& colours)
 
 void CreateScreensaverPopup()
 {
-	screensaverPopup = new PopupWindow(DisplayY, DisplayX, black, black);
+	screensaverPopup = new PopupWindow(max(DisplayX, DisplayY), max(DisplayX, DisplayY), black, black);
 	DisplayField::SetDefaultColours(white, black);
 	static const char * text = "Touch to wake up";
 	screensaverTextWidth = DisplayField::GetTextWidth(text, DisplayX);
@@ -1429,7 +1429,7 @@ void CreatePendantJogTabFields(const ColourScheme& colours) {
 	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonImageBackColour);
 	for (size_t i = 0; i < MaxPendantTools; ++i)
 	{
-		toolSelectButtons[i]  = AddIconButtonWithText(secondBlock + (i + 1) * rowHeightP, toolsCol, 3, IconNozzle, evToolSelect, i, i, DisplayXP);
+		toolSelectButtonsPJog[i]  = AddIconButtonWithText(secondBlock + (i + 1) * rowHeightP, toolsCol, 3, IconNozzle, evToolSelect, i, i, DisplayXP);
 	}
 
 	// Extrusion/Heating
@@ -1885,9 +1885,9 @@ namespace UI
 				currentTempPJog->SetValue(fval);
 			}
 
-			if (tool->slotP < MaxPendantTools)
+			if (tool->slotPJob < MaxPendantTools)
 			{
-				currentTempsPJob[tool->slotP]->SetValue(fval);
+				currentTempsPJob[tool->slotPJob]->SetValue(fval);
 			}
 		}
 	}
@@ -1927,9 +1927,9 @@ namespace UI
 			{
 				currentTempPJog->SetColours(foregroundColour, backgroundColour);
 			}
-			if (tool->slotP < MaxPendantTools)
+			if (tool->slotPJob < MaxPendantTools)
 			{
-				currentTempsPJob[tool->slotP]->SetColours(foregroundColour, backgroundColour);
+				currentTempsPJob[tool->slotPJob]->SetColours(foregroundColour, backgroundColour);
 			}
 		}
 	}
@@ -2556,18 +2556,18 @@ namespace UI
 			{
 				UpdateField(fieldPJog, ival);
 			}
-			if (tool->slotP < MaxPendantTools)
+			if (tool->slotPJob < MaxPendantTools)
 			{
-				UpdateField(fieldsPJob[tool->slotP], ival);
+				UpdateField(fieldsPJob[tool->slotPJob], ival);
 			}
 		}
-		else if ((int)index == bedHeater.heater && bedHeater.slotP < MaxPendantTools)
+		else if ((int)index == bedHeater.heater && bedHeater.slotPJob < MaxPendantTools)
 		{
-			UpdateField(activeTempsPJob[bedHeater.slotP], ival);
+			UpdateField(activeTempsPJob[bedHeater.slotPJob], ival);
 		}
-		else if ((int)index == chamberHeater.heater && chamberHeater.slotP < MaxPendantTools)
+		else if ((int)index == chamberHeater.heater && chamberHeater.slotPJob < MaxPendantTools)
 		{
-			UpdateField(activeTempsPJob[chamberHeater.slotP], ival);
+			UpdateField(activeTempsPJob[chamberHeater.slotPJob], ival);
 		}
 	}
 
@@ -3955,25 +3955,26 @@ namespace UI
 	void AllToolsSeen()
 	{
 		size_t slot = 0;
-		size_t slotP = 0;
+		size_t slotPJog = 0;
+		size_t slotPJob = 0;
 
 		// Hard-code the probe in the first slot
 		auto probeTool = OM::GetTool(ProbeToolIndex);
 		if (probeTool != nullptr)
 		{
-			probeTool->slotP = slotP;
-			toolSelectButtons[slotP]->SetEvent(evSelectHead, ProbeToolIndex);
-			toolSelectButtons[slotP]->SetIntVal(ProbeToolIndex);
-			toolSelectButtons[slotP]->SetPrintText(true);
-			toolSelectButtons[slotP]->SetText(strings->probe);
-			toolSelectButtons[slotP]->SetDrawIcon(false);
-			mgr.Show(toolSelectButtons[slotP], true);
-			// FIXME: this leads to an empty row in the Job heat table
-			++slotP;
+			probeTool->slotPJog = slotPJog;
+			toolSelectButtonsPJog[slotPJog]->SetEvent(evSelectHead, ProbeToolIndex);
+			toolSelectButtonsPJog[slotPJog]->SetIntVal(ProbeToolIndex);
+			toolSelectButtonsPJog[slotPJog]->SetPrintText(true);
+			toolSelectButtonsPJog[slotPJog]->SetText(strings->probe);
+			toolSelectButtonsPJog[slotPJog]->SetDrawIcon(false);
+			mgr.Show(toolSelectButtonsPJog[slotPJog], true);
+			++slotPJog;
 		}
 
 		bedHeater.slot = MaxHeaters;
-		bedHeater.slotP = MaxPendantTools;
+		bedHeater.slotPJog = MaxPendantTools;
+		bedHeater.slotPJob = MaxPendantTools;
 		if (bedHeater.heater > -1)
 		{
 			bedHeater.slot = slot;
@@ -3989,20 +3990,20 @@ namespace UI
 			standbyTemps[slot]->SetEvent(evAdjustBedStandbyTemp, bedHeater.heater);
 			++slot;
 
-			bedHeater.slotP = slotP;
-			mgr.Show(toolButtonsPJob[slotP], true);
-			mgr.Show(currentTempsPJob[slotP], true);
-			mgr.Show(activeTempsPJob[slotP], true);
-			mgr.Show(standbyTempsPJob[slotP], true);
-			toolButtonsPJob[slotP]->SetEvent(evSelectChamber, bedHeater.index);
-			toolButtonsPJob[slotP]->SetIcon(IconChamber);
-			toolButtonsPJob[slotP]->SetIntVal(bedHeater.index);	// Remove the line below if we want to show the bed number
-			toolButtonsPJob[slotP]->SetPrintText(false);
-			activeTempsPJob[slotP]->SetEvent(evAdjustBedActiveTemp, bedHeater.heater);
-			standbyTempsPJob[slotP]->SetEvent(evAdjustBedStandbyTemp, bedHeater.heater);
-			++slotP;
+			bedHeater.slotPJob = slotPJob;
+			mgr.Show(toolButtonsPJob[slotPJob], true);
+			mgr.Show(currentTempsPJob[slotPJob], true);
+			mgr.Show(activeTempsPJob[slotPJob], true);
+			mgr.Show(standbyTempsPJob[slotPJob], true);
+			toolButtonsPJob[slotPJob]->SetEvent(evSelectChamber, bedHeater.index);
+			toolButtonsPJob[slotPJob]->SetIcon(IconChamber);
+			toolButtonsPJob[slotPJob]->SetIntVal(bedHeater.index);	// Remove the line below if we want to show the bed number
+			toolButtonsPJob[slotPJob]->SetPrintText(false);
+			activeTempsPJob[slotPJob]->SetEvent(evAdjustBedActiveTemp, bedHeater.heater);
+			standbyTempsPJob[slotPJob]->SetEvent(evAdjustBedStandbyTemp, bedHeater.heater);
+			++slotPJob;
 		}
-		OM::IterateTools([&slot, &slotP](OM::Tool* tool)
+		OM::IterateTools([&slot, &slotPJog, &slotPJob](OM::Tool* tool)
 		{
 			tool->slot = slot;
 			const bool hasHeater = tool->heater > -1;
@@ -4028,35 +4029,44 @@ namespace UI
 				extrusionFactors[slot]->SetEvent(extrusionFactors[slot]->GetEvent(), tool->extruder);
 				++slot;
 			}
-			tool->slotP = slotP;
-			if (slotP < MaxPendantTools && tool->index != ProbeToolIndex)
+			tool->slotPJog = MaxPendantTools;
+			tool->slotPJob = MaxPendantTools;
+			if (tool->index != ProbeToolIndex)
 			{
-				toolSelectButtons[slotP]->SetEvent(evSelectHead, tool->index);
-				toolSelectButtons[slotP]->SetIntVal(tool->index);
-				toolSelectButtons[slotP]->SetPrintText(true);
+				if (slotPJog < MaxPendantTools)
+				{
+					tool->slotPJog = slotPJog;
+					toolSelectButtonsPJog[slotPJog]->SetEvent(evSelectHead, tool->index);
+					toolSelectButtonsPJog[slotPJog]->SetIntVal(tool->index);
+					toolSelectButtonsPJog[slotPJog]->SetText(nullptr);
+					toolSelectButtonsPJog[slotPJog]->SetPrintText(true); // This enables printing the IntVal
+					toolSelectButtonsPJog[slotPJog]->SetIcon(hasSpindle ? IconSpindle : IconNozzle);
+					toolSelectButtonsPJog[slotPJog]->SetDrawIcon(true);
 
-				toolButtonsPJob[slotP]->SetEvent(evSelectHead, tool->index);
-				toolButtonsPJob[slotP]->SetIntVal(tool->index);
-				toolButtonsPJob[slotP]->SetPrintText(true);
+					mgr.Show(toolSelectButtonsPJog[slotPJog], true);
+					++slotPJog;
+				}
 
-				toolSelectButtons[slotP]->SetText(nullptr);
-				toolSelectButtons[slotP]->SetIcon(hasSpindle ? IconSpindle : IconNozzle);
-				toolSelectButtons[slotP]->SetDrawIcon(true);
+				if (slotPJob < MaxPendantTools && hasHeater)
+				{
+					tool->slotPJob = slotPJob;
+					toolButtonsPJob[slotPJob]->SetEvent(evSelectHead, tool->index);
+					toolButtonsPJob[slotPJob]->SetIntVal(tool->index);
+					toolButtonsPJob[slotPJob]->SetText(nullptr);
+					toolButtonsPJob[slotPJob]->SetPrintText(true); // This enables printing the IntVal
+					toolButtonsPJob[slotPJob]->SetIcon(hasSpindle ? IconSpindle : IconNozzle);
+					toolButtonsPJob[slotPJob]->SetDrawIcon(true);
 
-				toolButtonsPJob[slotP]->SetText(nullptr);
-				toolButtonsPJob[slotP]->SetIcon(hasSpindle ? IconSpindle : IconNozzle);
-				toolButtonsPJob[slotP]->SetDrawIcon(true);
+					mgr.Show(toolButtonsPJob[slotPJob], true);
+					mgr.Show(currentTempsPJob[slotPJob], true);
+					mgr.Show(activeTempsPJob[slotPJob], true);
+					mgr.Show(standbyTempsPJob[slotPJob], true);
 
-				mgr.Show(toolSelectButtons[slotP], true);
-				mgr.Show(toolButtonsPJob[slotP], hasHeater || hasSpindle);
-				mgr.Show(currentTempsPJob[slotP], hasHeater || hasSpindle);
-				mgr.Show(activeTempsPJob[slotP], hasHeater || hasSpindle);
-				mgr.Show(standbyTempsPJob[slotP], hasHeater);
-
-				// Set tool/spindle number for change event
-				activeTempsPJob[slotP]->SetEvent(evForActive, evActiveParam);
-				standbyTempsPJob[slotP]->SetEvent(evAdjustToolStandbyTemp, tool->index);
-				++slotP;
+					// Set tool/spindle number for change event
+					activeTempsPJob[slotPJob]->SetEvent(evForActive, evActiveParam);
+					standbyTempsPJob[slotPJob]->SetEvent(evAdjustToolStandbyTemp, tool->index);
+					++slotPJob;
+				}
 			}
 		});
 		chamberHeater.slot = MaxHeaters;
@@ -4075,21 +4085,22 @@ namespace UI
 			standbyTemps[slot]->SetEvent(evAdjustChamberStandbyTemp, chamberHeater.heater);
 			++slot;
 		}
-		chamberHeater.slotP = MaxPendantTools;
-		if (slotP < MaxPendantTools && chamberHeater.heater > -1)
+		chamberHeater.slotPJog = MaxPendantTools;
+		chamberHeater.slotPJob = MaxPendantTools;
+		if (slotPJob < MaxPendantTools && chamberHeater.heater > -1)
 		{
-			chamberHeater.slotP = slotP;
-			mgr.Show(toolButtonsPJob[slotP], true);
-			mgr.Show(currentTempsPJob[slotP], true);
-			mgr.Show(activeTempsPJob[slotP], true);
-			mgr.Show(standbyTempsPJob[slotP], true);
-			toolButtonsPJob[slotP]->SetEvent(evSelectChamber, chamberHeater.index);
-			toolButtonsPJob[slotP]->SetIcon(IconChamber);
-			toolButtonsPJob[slotP]->SetIntVal(chamberHeater.index);	// Remove the line below if we want to show the chamber number
-			toolButtonsPJob[slotP]->SetPrintText(false);
-			activeTempsPJob[slotP]->SetEvent(evAdjustChamberActiveTemp, chamberHeater.heater);
-			standbyTempsPJob[slotP]->SetEvent(evAdjustChamberStandbyTemp, chamberHeater.heater);
-			++slotP;
+			chamberHeater.slotPJob = slotPJob;
+			mgr.Show(toolButtonsPJob[slotPJob], true);
+			mgr.Show(currentTempsPJob[slotPJob], true);
+			mgr.Show(activeTempsPJob[slotPJob], true);
+			mgr.Show(standbyTempsPJob[slotPJob], true);
+			toolButtonsPJob[slotPJob]->SetEvent(evSelectChamber, chamberHeater.index);
+			toolButtonsPJob[slotPJob]->SetIcon(IconChamber);
+			toolButtonsPJob[slotPJob]->SetIntVal(chamberHeater.index);	// Remove the line below if we want to show the chamber number
+			toolButtonsPJob[slotPJob]->SetPrintText(false);
+			activeTempsPJob[slotPJob]->SetEvent(evAdjustChamberActiveTemp, chamberHeater.heater);
+			standbyTempsPJob[slotPJob]->SetEvent(evAdjustChamberStandbyTemp, chamberHeater.heater);
+			++slotPJob;
 		}
 		numToolColsUsed = slot;
 		for (size_t i = slot; i < MaxHeaters; ++i)
@@ -4100,9 +4111,12 @@ namespace UI
 			mgr.Show(standbyTemps[i], false);
 			mgr.Show(extrusionFactors[i], false);
 		}
-		for (size_t i = slotP; i < MaxPendantTools; ++i)
+		for (size_t i = slotPJog; i < MaxPendantTools; ++i)
 		{
-			mgr.Show(toolSelectButtons[i], false);
+			mgr.Show(toolSelectButtonsPJog[i], false);
+		}
+		for (size_t i = slotPJob; i < MaxPendantTools; ++i)
+		{
 			mgr.Show(toolButtonsPJob[i], false);
 			mgr.Show(currentTempsPJob[i], false);
 			mgr.Show(activeTempsPJob[i], false);
@@ -4124,9 +4138,9 @@ namespace UI
 				{
 					UpdateField(activeTemps[tool->slot], (int)active);
 				}
-				if (tool->slotP < MaxPendantTools)
+				if (tool->slotPJob < MaxPendantTools)
 				{
-					UpdateField(activeTempsPJob[tool->slotP], (int)active);
+					UpdateField(activeTempsPJob[tool->slotPJob], (int)active);
 				}
 				if (tool->index == currentTool)
 				{
@@ -4148,9 +4162,9 @@ namespace UI
 				{
 					currentTemps[tool->slot]->SetValue(current);
 				}
-				if (tool->slotP < MaxPendantTools)
+				if (tool->slotPJob < MaxPendantTools)
 				{
-					currentTempsPJob[tool->slotP]->SetValue(current);
+					currentTempsPJob[tool->slotPJob]->SetValue(current);
 				}
 				if (tool->index == currentTool)
 				{
@@ -4177,10 +4191,13 @@ namespace UI
 		{
 			toolButtons[tool->slot]->SetColours(colours->buttonTextColour, c);
 		}
-		if (tool->slotP < MaxPendantTools)
+		if (tool->slotPJog < MaxPendantTools)
 		{
-			toolSelectButtons[tool->slotP]->SetColours(colours->buttonTextColour, c);
-			toolButtonsPJob[tool->slotP]->SetColours(colours->buttonTextColour, c);
+			toolSelectButtonsPJog[tool->slotPJog]->SetColours(colours->buttonTextColour, c);
+		}
+		if (tool->slotPJob < MaxPendantTools)
+		{
+			toolButtonsPJob[tool->slotPJob]->SetColours(colours->buttonTextColour, c);
 		}
 	}
 

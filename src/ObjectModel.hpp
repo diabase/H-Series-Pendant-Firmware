@@ -70,7 +70,8 @@ namespace OM {
 		float offsets[MaxTotalAxes];
 		ToolStatus status = ToolStatus::off;
 		uint8_t slot = MaxHeaters;
-		uint8_t slotP = MaxPendantTools;
+		uint8_t slotPJog = MaxPendantTools;
+		uint8_t slotPJob = MaxPendantTools;
 		Tool* next = nullptr;
 	};
 
@@ -82,9 +83,10 @@ namespace OM {
 		int8_t heater = -1;
 		// Slot for display on panel
 		uint8_t slot = MaxHeaters;
-		uint8_t slotP = MaxPendantTools;
+		uint8_t slotPJog = MaxPendantTools;
+		uint8_t slotPJob = MaxPendantTools;
 
-		void Reset() { index = 0; heater = -1; slot = MaxHeaters; }
+		void Reset() { index = 0; heater = -1; slot = MaxHeaters; slotPJog = MaxPendantTools; slotPJob = MaxPendantTools; }
 	};
 
 	Axis* FindAxis(std::function<bool(Axis*)> filter);
