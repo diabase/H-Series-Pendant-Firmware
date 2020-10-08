@@ -32,6 +32,7 @@ enum Event : uint8_t
 
 	// Pendant offset related
 	evProbeWorkpiece, evTouchoff, evSetToolOffset, evFindCenterOfCavity, evZeroAxisInWCS, evWCSOffsetsPopup, evSetAxesOffsetToCurrent,
+	evSelectAxisForWCSFineControl,
 
 	// Heater control
 	evSelectHead, evSelectBed, evSelectChamber,

@@ -115,7 +115,7 @@ static ButtonPress currentButton;
 static ButtonPress fieldBeingAdjusted;
 static ButtonPress currentExtrudeRatePress, currentExtrudeAmountPress;
 static ButtonPress currentExtrudeRatePressP, currentExtrudeAmountPressP;
-static ButtonPress currentWCSPress;
+static ButtonPress currentWCSPress, currentWCSAxisMovementPress;
 
 static String<machineNameLength> machineName;
 static String<printingFileLength> printingFile;
@@ -480,6 +480,29 @@ ButtonPress CreateStringButtonRow(Window * pf, PixelNumber top, PixelNumber left
 	return bp;
 }
 
+// Create a row of float buttons.
+// Optionally, set one to 'pressed' and return that one.
+// Set the colours before calling this
+ButtonPress CreateFloatButtonRow(Window * parentWindow, PixelNumber top, PixelNumber left, PixelNumber totalWidth, PixelNumber spacing, unsigned int numButtons,
+		const char* unit, const unsigned short int decimals, const float params[], Event evt, int selected = -1)
+{
+	const PixelNumber step = (totalWidth + spacing)/numButtons;
+	ButtonPress bp;
+	for (unsigned int i = 0; i < numButtons; ++i)
+	{
+		FloatButton *tp = new FloatButton(top, left + i * step, step - spacing, decimals, unit);
+		tp->SetEvent(evt, params[i]);
+		tp->SetValue(params[i]);
+		parentWindow->AddField(tp);
+		if ((int)i == selected)
+		{
+			tp->Press(true, 0);
+			bp = ButtonPress(tp, 0);
+		}
+	}
+	return bp;
+}
+
 // Create a row of text buttons.
 // Optionally, set one to 'pressed' and return that one.
 // Set the colours before calling this
@@ -816,8 +839,10 @@ void CreateWCSOffsetsPopup(const ColourScheme& colours)
 		wcsOffsetsPopup->AddField(wcsSetToCurrent[i] = new IconButton(ypos, CalcXPos(2, width, popupSideMargin), width, IconSetToCurrent, evSetAxesOffsetToCurrent, jogAxes[i]));
 		ypos += buttonHeight + fieldSpacing;
 	}
-	ypos += buttonHeight + fieldSpacing;
+	ypos += buttonHeight * 1.5 + fieldSpacing;
 
+	static const float array wcsAxisMovementAmounts[] { 0.001, 0.01, 0.1, 1.0, 10.0 };
+	currentWCSAxisMovementPress = CreateFloatButtonRow(wcsOffsetsPopup, ypos, popupSideMargin, fullPopupWidthP - 2 * popupSideMargin, fieldSpacing, ARRAY_SIZE(wcsAxisMovementAmounts), nullptr, 3, wcsAxisMovementAmounts, evSelectAxisForWCSFineControl, 1);
 }
 
 
@@ -1855,7 +1880,7 @@ namespace UI
 	}
 
 	int GetHeaterSlot(size_t heater)
-		{
+	{
 		if ((int)heater == bedHeater.heater)
 		{
 			return bedHeater.slot;
@@ -1871,11 +1896,10 @@ namespace UI
 	void UpdateCurrentTemperature(size_t heater, float fval)
 	{
 		const int heaterSlot = GetHeaterSlot(heater);
-		if (heaterSlot < 0)
+		if (heaterSlot >= 0)
 		{
-			return;
+			currentTemps[heaterSlot]->SetValue(fval);
 		}
-		currentTemps[heaterSlot]->SetValue(fval);
 
 		auto tool = OM::GetToolForHeater(heater);
 		if (tool != nullptr)
@@ -1889,6 +1913,14 @@ namespace UI
 			{
 				currentTempsPJob[tool->slotPJob]->SetValue(fval);
 			}
+		}
+		if ((int)heater == bedHeater.heater)
+		{
+			currentTempsPJob[bedHeater.slotPJob]->SetValue(fval);
+		}
+		if ((int)heater == chamberHeater.heater)
+		{
+			currentTempsPJob[chamberHeater.slotPJob]->SetValue(fval);
 		}
 	}
 
