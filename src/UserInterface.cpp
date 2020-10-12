@@ -77,6 +77,7 @@ static FloatField *controlTabAxisPos[MaxDisplayableAxes];
 static FloatField *printTabAxisPos[MaxDisplayableAxes];
 static FloatField *movePopupAxisPos[MaxDisplayableAxes];
 static FloatField *jogTabAxisPos[MaxDisplayableAxesP], *jobTabAxisPos[MaxDisplayableAxesP];
+static DisplayField *jogAxisButtons;
 static IconButtonWithText *toolSelectButtonsPJog[MaxPendantTools], *toolButtonsPJob[MaxPendantTools];
 static FloatField *currentTemps[MaxHeaters];
 static FloatField *currentTempPJog;
@@ -459,22 +460,38 @@ IconButtonWithText *AddIconButtonWithText(PixelNumber row, unsigned int col, uns
 // Create a row of text buttons.
 // Optionally, set one to 'pressed' and return that one.
 // Set the colours before calling this
-ButtonPress CreateStringButtonRow(Window * pf, PixelNumber top, PixelNumber left, PixelNumber totalWidth, PixelNumber spacing, unsigned int numButtons,
-									const char* array const text[], const char* array const params[], Event evt, int selected = -1, bool textButtonForAxis = false)
+ButtonPress CreateStringButtonRow(
+		Window * parentWindow,
+		PixelNumber top,
+		PixelNumber left,
+		PixelNumber totalWidth,
+		PixelNumber spacing,
+		unsigned int numButtons,
+		const char* array const text[],
+		const char* array const params[],
+		Event evt,
+		int selected = -1,
+		bool textButtonForAxis = false,
+		DisplayField** firstButton = nullptr)
 {
 	const PixelNumber step = (totalWidth + spacing)/numButtons;
 	ButtonPress bp;
-	for (unsigned int i = 0; i < numButtons; ++i)
+	// Since Window->AddField prepends fields in the linked list we start with the last element
+	for (int i = numButtons - 1; i >= 0; --i)
 	{
 		TextButton *tp =
 				textButtonForAxis
 				? new TextButtonForAxis(top, left + i * step, step - spacing, text[i], evt, params[i])
-				: new TextButton(top, left + i * step, step - spacing, text[i], evt, params[i]);
-		pf->AddField(tp);
+				: new TextButton(		top, left + i * step, step - spacing, text[i], evt, params[i]);
+		parentWindow->AddField(tp);
 		if ((int)i == selected)
 		{
 			tp->Press(true, 0);
 			bp = ButtonPress(tp, 0);
+		}
+		if (firstButton != nullptr && i == 0)
+		{
+			*firstButton = tp;
 		}
 	}
 	return bp;
@@ -483,12 +500,23 @@ ButtonPress CreateStringButtonRow(Window * pf, PixelNumber top, PixelNumber left
 // Create a row of float buttons.
 // Optionally, set one to 'pressed' and return that one.
 // Set the colours before calling this
-ButtonPress CreateFloatButtonRow(Window * parentWindow, PixelNumber top, PixelNumber left, PixelNumber totalWidth, PixelNumber spacing, unsigned int numButtons,
-		const char* unit, const unsigned short int decimals, const float params[], Event evt, int selected = -1)
+ButtonPress CreateFloatButtonRow(
+		Window * parentWindow,
+		PixelNumber top,
+		PixelNumber left,
+		PixelNumber totalWidth,
+		PixelNumber spacing,
+		unsigned int numButtons,
+		const char* unit,
+		const unsigned short int decimals,
+		const float params[],
+		Event evt,
+		int selected = -1,
+		DisplayField** firstButton = nullptr)
 {
 	const PixelNumber step = (totalWidth + spacing)/numButtons;
 	ButtonPress bp;
-	for (unsigned int i = 0; i < numButtons; ++i)
+	for (int i = numButtons - 1; i >= 0; --i)
 	{
 		FloatButton *tp = new FloatButton(top, left + i * step, step - spacing, decimals, unit);
 		tp->SetEvent(evt, params[i]);
@@ -499,26 +527,9 @@ ButtonPress CreateFloatButtonRow(Window * parentWindow, PixelNumber top, PixelNu
 			tp->Press(true, 0);
 			bp = ButtonPress(tp, 0);
 		}
-	}
-	return bp;
-}
-
-// Create a row of text buttons.
-// Optionally, set one to 'pressed' and return that one.
-// Set the colours before calling this
-ButtonPress CreateStringButtonRowVertical(Window * pf, PixelNumber top, PixelNumber left, PixelNumber totalHeight, PixelNumber spacing, PixelNumber buttonWidth, unsigned int numButtons,
-									const char* array const text[], const char* array const params[], Event evt, int selected = -1)
-{
-	const PixelNumber step = (totalHeight + spacing)/numButtons;
-	ButtonPress bp;
-	for (unsigned int i = 0; i < numButtons; ++i)
-	{
-		TextButton *tp = new TextButton(top + i * step, left, buttonWidth, text[i], evt, params[i]);
-		pf->AddField(tp);
-		if ((int)i == selected)
+		if (firstButton != nullptr && i == 0)
 		{
-			tp->Press(true, 0);
-			bp = ButtonPress(tp, 0);
+			*firstButton = tp;
 		}
 	}
 	return bp;
@@ -527,21 +538,77 @@ ButtonPress CreateStringButtonRowVertical(Window * pf, PixelNumber top, PixelNum
 // Create a row of text buttons.
 // Optionally, set one to 'pressed' and return that one.
 // Set the colours before calling this
-ButtonPress CreateFloatButtonRowVertical(Window * pf, PixelNumber top, PixelNumber left, PixelNumber totalHeight, PixelNumber spacing, PixelNumber buttonWidth, unsigned int numButtons,
-									const char* unit, const unsigned short int decimals, const float params[], Event evt, int selected = -1)
+ButtonPress CreateStringButtonRowVertical(
+		Window * parentWindow,
+		PixelNumber top,
+		PixelNumber left,
+		PixelNumber totalHeight,
+		PixelNumber spacing,
+		PixelNumber buttonWidth,
+		unsigned int numButtons,
+		const char* array const text[],
+		const char* array const params[],
+		Event evt,
+		int selected = -1,
+		bool textButtonForAxis = false,
+		DisplayField** firstButton = nullptr)
 {
 	const PixelNumber step = (totalHeight + spacing)/numButtons;
 	ButtonPress bp;
-	for (unsigned int i = 0; i < numButtons; ++i)
+	for (int i = numButtons - 1; i >= 0; --i)
 	{
-		FloatButton *tp = new FloatButton(top + i * step, left, buttonWidth, decimals, unit);
-		tp->SetEvent(evt, params[i]);
-		tp->SetValue(params[i]);
-		pf->AddField(tp);
+		TextButton *tp =
+				textButtonForAxis
+				? new TextButtonForAxis(top + i * step, left, buttonWidth, text[i], evt, params[i])
+				: new TextButton(		top + i * step, left, buttonWidth, text[i], evt, params[i]);
+		parentWindow->AddField(tp);
 		if ((int)i == selected)
 		{
 			tp->Press(true, 0);
 			bp = ButtonPress(tp, 0);
+		}
+		if (firstButton != nullptr && i == 0)
+		{
+			*firstButton = tp;
+		}
+	}
+	return bp;
+}
+
+// Create a row of text buttons.
+// Optionally, set one to 'pressed' and return that one.
+// Set the colours before calling this
+ButtonPress CreateFloatButtonRowVertical(
+		Window * parentWindow,
+		PixelNumber top,
+		PixelNumber left,
+		PixelNumber totalHeight,
+		PixelNumber spacing,
+		PixelNumber buttonWidth,
+		unsigned int numButtons,
+		const char* unit,
+		const unsigned short int decimals,
+		const float params[],
+		Event evt,
+		int selected = -1,
+		DisplayField** firstButton = nullptr)
+{
+	const PixelNumber step = (totalHeight + spacing)/numButtons;
+	ButtonPress bp;
+	for (int i = numButtons - 1; i >= 0; --i)
+	{
+		FloatButton *tp = new FloatButton(top + i * step, left, buttonWidth, decimals, unit);
+		tp->SetEvent(evt, params[i]);
+		tp->SetValue(params[i]);
+		parentWindow->AddField(tp);
+		if ((int)i == selected)
+		{
+			tp->Press(true, 0);
+			bp = ButtonPress(tp, 0);
+		}
+		if (firstButton != nullptr && i == 0)
+		{
+			*firstButton = tp;
 		}
 	}
 	return bp;
@@ -1421,11 +1488,43 @@ void CreatePendantJogTabFields(const ColourScheme& colours) {
 
 	static const float jogAmountValues[] = { 0.01, 0.10, 1.00 /*, 5.00 */ };
 
-	// Axis selection
-	currentJogAxis = CreateStringButtonRowVertical(&mgr, jogBlock + rowHeightP, CalcXPos(axisCol, colWidth), ARRAY_SIZE(jogAxes) * buttonHeight + (ARRAY_SIZE(jogAxes) - 1) * fieldSpacing, fieldSpacing, colWidth, ARRAY_SIZE(jogAxes), jogAxes, jogAxes, evPJogAxis, 0);
-
 	// Distance per click
-	currentJogAmount = CreateFloatButtonRowVertical(&mgr, jogBlock + rowHeightP, CalcXPos(movementCol, colWidth), ARRAY_SIZE(jogAmountValues) * buttonHeight + (ARRAY_SIZE(jogAmountValues) - 1) * fieldSpacing, fieldSpacing, colWidth, ARRAY_SIZE(jogAmountValues), "mm", 2, jogAmountValues, evPJogAmount, 2);
+	currentJogAmount = CreateFloatButtonRowVertical(
+			&mgr,
+			jogBlock + rowHeightP,
+			CalcXPos(movementCol, colWidth),
+			ARRAY_SIZE(jogAmountValues) * buttonHeight + (ARRAY_SIZE(jogAmountValues) - 1) * fieldSpacing,
+			fieldSpacing,
+			colWidth,
+			ARRAY_SIZE(jogAmountValues),
+			"mm",
+			2,
+			jogAmountValues,
+			evPJogAmount,
+			2);
+
+	// Axis selection
+	currentJogAxis = CreateStringButtonRowVertical(
+			&mgr,
+			jogBlock + rowHeightP,
+			CalcXPos(axisCol, colWidth),
+			ARRAY_SIZE(jogAxes) * buttonHeight + (ARRAY_SIZE(jogAxes) - 1) * fieldSpacing,
+			fieldSpacing,
+			colWidth,
+			ARRAY_SIZE(jogAxes),
+			jogAxes,
+			jogAxes,
+			evPJogAxis,
+			0,
+			true,
+			&jogAxisButtons);
+
+	DisplayField* f = jogAxisButtons;
+	for (size_t i = 0; i < MaxDisplayableAxesP && f != nullptr; ++i)
+	{
+		f->Show(false);
+		f = f->next;
+	}
 
 	// Axis position fields
 	DisplayField::SetDefaultColours(colours.infoTextColour, colours.infoBackColour);
@@ -1436,6 +1535,7 @@ void CreatePendantJogTabFields(const ColourScheme& colours) {
 		FloatField * const f = new FloatField(row + labelRowAdjust, CalcXPos(currentPosCol, width), width, TextAlignment::Right, 3);
 		jogTabAxisPos[i] = f;
 		f->SetValue(0.0);
+		f->Show(false);
 		mgr.AddField(f);
 		row += rowHeightP;
 	}
@@ -1823,39 +1923,54 @@ namespace UI
 		DisplayField *f = moveAxisRows[slot];
 		for (int i = 0; i < 9 && f != nullptr; ++i)
 		{
-			f->Show(b);
+			mgr.Show(f, b);
 			if (i > 0) // actual move buttons
 			{
 				TextButtonForAxis *textButton = static_cast<TextButtonForAxis*>(f);
-				// Use int value with slot here because string value is already taken by amount
 				textButton->SetAxisLetter(axisLetter);
 			}
 			f = f->next;
 		}
-		controlTabAxisPos[slot]->Show(b);
-		printTabAxisPos[slot]->Show(b);
+		mgr.Show(controlTabAxisPos[slot], b);
+		mgr.Show(printTabAxisPos[slot], b);
 		if (numDisplayedAxes < MaxDisplayableAxes)
 		{
-			movePopupAxisPos[slot]->Show(b);		// the move popup axis positions occupy the last axis row of the move popup
+			mgr.Show(movePopupAxisPos[slot], b);		// the move popup axis positions occupy the last axis row of the move popup
 		}
 		else
 		{
 			// This is incremental and we might end up that this row is no longer available
 			for (size_t i = 0; i < MaxDisplayableAxes; ++i)
 			{
-				movePopupAxisPos[i]->Show(false);
+				mgr.Show(movePopupAxisPos[i], false);
 			}
 		}
 	}
 
 	// Show or hide an axis on the move button grid and on the axis display
-	void ShowAxisP(size_t slot, bool b)
+	void ShowAxisP(size_t slot, bool b, char axisLetter)
 	{
 		if (slot >= MaxDisplayableAxesP)
 		{
 			return;
 		}
-		jobTabAxisPos[slot]->Show(b);
+		// Jog tab
+		DisplayField* f = jogAxisButtons;
+		for (size_t i = 0; i < MaxDisplayableAxesP && f != nullptr; ++i)
+		{
+			if (i == slot)
+			{
+				TextButtonForAxis *axisSelectButton = static_cast<TextButtonForAxis*>(f);
+				axisSelectButton->SetAxisLetter(axisLetter);
+				mgr.Show(axisSelectButton, b);
+				mgr.Show(jogTabAxisPos[slot], b);
+				break;
+			}
+			f = f->next;
+		}
+
+		// Job tab
+		mgr.Show(jobTabAxisPos[slot], b);
 	}
 
 	void UpdateAxisPosition(size_t axisIndex, float fval)
@@ -2202,18 +2317,15 @@ namespace UI
 
 	void ActivateScreensaver()
 	{
-		lcd.fillScr(black);
-		screensaverText->Show(isLandscape);
-		screensaverTextP->Show(!isLandscape);
+		mgr.Show(screensaverText, isLandscape);
+		mgr.Show(screensaverTextP, !isLandscape);
 		mgr.SetPopup(screensaverPopup);
 		lastScreensaverMoved = SystemTick::GetTickCount();
 	}
 
 	void DeactivateScreensaver()
 	{
-		lcd.fillScr(colours->defaultBackColour);
-		mgr.ClearPopup(false, screensaverPopup);
-		mgr.Refresh(true);
+		mgr.ClearPopup(true, screensaverPopup);
 	}
 
 	void AnimateScreensaver()
@@ -2227,14 +2339,17 @@ namespace UI
 			const PixelNumber availableHeight = (height - 2*margin - rowTextHeight);
 			const PixelNumber x = (rand_r(&seed) % availableWidth);
 			const PixelNumber y = (rand_r(&seed) % availableHeight);
-			lcd.fillScr(black);
 			if (isLandscape)
 			{
+				mgr.Show(screensaverText, false);
 				screensaverText->SetPosition(x + margin, y + margin);
+				mgr.Show(screensaverText, true);
 			}
 			else
 			{
+				mgr.Show(screensaverTextP, false);
 				screensaverTextP->SetPosition(x + margin, y + margin);
+				mgr.Show(screensaverTextP, true);
 			}
 			lastScreensaverMoved = SystemTick::GetTickCount();
 		}
@@ -2342,7 +2457,8 @@ namespace UI
 				const float jogAmount = currentJogAmount.GetFParam();
 				const unsigned int feedRate = jogAmount < 5.0f ? 6000 : 12000;
 				String<MaxEncoderCommandLength> cmd;
-				cmd.printf("G91 G0 %s%.3f F%d G90\n", currentJogAxis.GetSParam(), change * jogAmount, feedRate);
+				TextButtonForAxis *textButton = static_cast<TextButtonForAxis*>(currentJogAxis.GetButton());
+				cmd.printf("G91 G0 %c%.3f F%d G90\n", textButton->GetAxisLetter(), change * jogAmount, feedRate);
 				SerialIo::SendString(cmd.c_str());
 				sent = true;
 			}
@@ -2495,7 +2611,7 @@ namespace UI
 				{
 					axis->slotP = slotP;
 					jobTabAxisPos[slotP]->SetLabel(letter);
-					ShowAxisP(slotP, slotP < MaxTotalAxes);
+					ShowAxisP(slotP, slotP < MaxTotalAxes, axis->letter[0]);
 					++slotP;
 				}
 			});
@@ -3850,7 +3966,7 @@ namespace UI
 		if (filesNotMacros)
 		{
 			filePopupTitleField->SetValue(cardNumber);
-			changeCardButton->Show(numVolumes > 1);
+			mgr.Show(changeCardButton, numVolumes > 1);
 		}
 		if (isLandscape)
 		{
