@@ -202,7 +202,7 @@ public:
 	void Set(const char *title, const char *text, int32_t mode, uint32_t controls);
 
 private:
-	TextButton *zUpCourseButton, *zUpMedButton, *zUpFineButton, *zDownCourseButton, *zDownMedButton, *zDownFineButton;
+	TextButtonForAxis *zUpCourseButton, *zUpMedButton, *zUpFineButton, *zDownCourseButton, *zDownMedButton, *zDownFineButton;
 	IconButton *okButton, *cancelButton;
 	String<145/5> alertText1, alertText2, alertText3, alertText4, alertText5;
 	String<alertTitleLength> alertTitle;
@@ -313,19 +313,18 @@ AlertPopupP::AlertPopupP(const ColourScheme& colours)
 	constexpr PixelNumber hOffset = popupSideMargin/2 + (alertPopupWidthP - popupSideMargin - totalUnits * unitWidth)/2;
 
 	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonTextBackColour);
-	AddField(zUpCourseButton =   new TextButton(popupTopMargin + 8 * rowTextHeight, hOffset + 2 * buttonStep, buttonWidth, LESS_ARROW "2.0", evMoveAxisP, "-2.0"));
-	AddField(zUpMedButton =      new TextButton(popupTopMargin + 8 * rowTextHeight, hOffset + 1 * buttonStep, buttonWidth, LESS_ARROW "0.2", evMoveAxisP, "-0.2"));
-	AddField(zUpFineButton =     new TextButton(popupTopMargin + 8 * rowTextHeight, hOffset + 0 * buttonStep, buttonWidth, LESS_ARROW "0.02", evMoveAxisP, "-0.02"));
-	AddField(zDownFineButton =   new TextButton(popupTopMargin + 8 * rowTextHeight + buttonHeight + 2 * margin, hOffset + 0 * buttonStep, buttonWidth, MORE_ARROW "0.02", evMoveAxisP, "0.02"));
-	AddField(zDownMedButton =    new TextButton(popupTopMargin + 8 * rowTextHeight + buttonHeight + 2 * margin, hOffset + 1 * buttonStep, buttonWidth, MORE_ARROW "0.2", evMoveAxisP, "0.2"));
-	AddField(zDownCourseButton = new TextButton(popupTopMargin + 8 * rowTextHeight + buttonHeight + 2 * margin, hOffset + 2 * buttonStep, buttonWidth, MORE_ARROW "2.0", evMoveAxisP, "2.0"));
-	// TODO: Update these if order changes?
-	zUpCourseButton->SetEvent(evMoveAxisP, 3);
-	zUpMedButton->SetEvent(evMoveAxisP, 3);
-	zUpFineButton->SetEvent(evMoveAxisP, 3);
-	zDownFineButton->SetEvent(evMoveAxisP, 3);
-	zDownMedButton->SetEvent(evMoveAxisP, 3);
-	zDownCourseButton->SetEvent(evMoveAxisP, 3);
+	AddField(zUpCourseButton =   new TextButtonForAxis(popupTopMargin + 8 * rowTextHeight, hOffset + 2 * buttonStep, buttonWidth, LESS_ARROW "2.0", evMoveAxisP, "-2.0"));
+	AddField(zUpMedButton =      new TextButtonForAxis(popupTopMargin + 8 * rowTextHeight, hOffset + 1 * buttonStep, buttonWidth, LESS_ARROW "0.2", evMoveAxisP, "-0.2"));
+	AddField(zUpFineButton =     new TextButtonForAxis(popupTopMargin + 8 * rowTextHeight, hOffset + 0 * buttonStep, buttonWidth, LESS_ARROW "0.02", evMoveAxisP, "-0.02"));
+	AddField(zDownFineButton =   new TextButtonForAxis(popupTopMargin + 8 * rowTextHeight + buttonHeight + 2 * margin, hOffset + 0 * buttonStep, buttonWidth, MORE_ARROW "0.02", evMoveAxisP, "0.02"));
+	AddField(zDownMedButton =    new TextButtonForAxis(popupTopMargin + 8 * rowTextHeight + buttonHeight + 2 * margin, hOffset + 1 * buttonStep, buttonWidth, MORE_ARROW "0.2", evMoveAxisP, "0.2"));
+	AddField(zDownCourseButton = new TextButtonForAxis(popupTopMargin + 8 * rowTextHeight + buttonHeight + 2 * margin, hOffset + 2 * buttonStep, buttonWidth, MORE_ARROW "2.0", evMoveAxisP, "2.0"));
+	zUpCourseButton->SetAxisLetter('Z');
+	zUpMedButton->SetAxisLetter('Z');
+	zUpFineButton->SetAxisLetter('Z');
+	zDownFineButton->SetAxisLetter('Z');
+	zDownMedButton->SetAxisLetter('Z');
+	zDownCourseButton->SetAxisLetter('Z');
 
 	AddField(okButton =          new IconButton(popupTopMargin + 8 * rowTextHeight + 2 * buttonHeight + moveButtonRowSpacing + 2 * margin, hOffset + buttonStep/4,	   buttonWidth + buttonStep/4, IconOk, evCloseAlert, "M292 P0"));
 	AddField(cancelButton =      new IconButton(popupTopMargin + 8 * rowTextHeight + 2 * buttonHeight + moveButtonRowSpacing + 2 * margin, hOffset + 3 * buttonStep/2, buttonWidth + buttonStep/4, IconCancel, evCloseAlert, "M292 P1"));
@@ -789,7 +788,7 @@ void CreateMovePopup(const ColourScheme& colours)
 		StaticTextField * const tf = new StaticTextField(ypos + labelRowAdjust, popupSideMargin, axisLabelWidth, TextAlignment::Left, axisNames[i]);
 		movePopup->AddField(tf);
 		moveAxisRows[i] = tf;
-		UI::ShowAxis(i, i < MIN_AXES, axisNames[i][0]);
+		UI::ShowAxis(i, i < MIN_AXES, axisNames[i]);
 
 		DisplayField::SetDefaultColours(colours.popupTextColour, colours.popupInfoBackColour);
 		FloatField *f = new FloatField(axisPosYpos, column, xyFieldWidth, TextAlignment::Left, (i == 2) ? 2 : 1, axisNames[i]);
@@ -1913,7 +1912,7 @@ namespace UI
 	}
 
 	// Show or hide an axis on the move button grid and on the axis display
-	void ShowAxis(size_t slot, bool b, char axisLetter)
+	void ShowAxis(size_t slot, bool b, const char* axisLetter)
 	{
 		if (slot >= MaxDisplayableAxes)
 		{
@@ -1927,7 +1926,7 @@ namespace UI
 			if (i > 0) // actual move buttons
 			{
 				TextButtonForAxis *textButton = static_cast<TextButtonForAxis*>(f);
-				textButton->SetAxisLetter(axisLetter);
+				textButton->SetAxisLetter(axisLetter[0]);
 			}
 			f = f->next;
 		}
@@ -1948,7 +1947,7 @@ namespace UI
 	}
 
 	// Show or hide an axis on the move button grid and on the axis display
-	void ShowAxisP(size_t slot, bool b, char axisLetter)
+	void ShowAxisP(size_t slot, bool b, const char* axisLetter)
 	{
 		if (slot >= MaxDisplayableAxesP)
 		{
@@ -1961,7 +1960,8 @@ namespace UI
 			if (i == slot)
 			{
 				TextButtonForAxis *axisSelectButton = static_cast<TextButtonForAxis*>(f);
-				axisSelectButton->SetAxisLetter(axisLetter);
+				axisSelectButton->SetText(axisLetter);
+				axisSelectButton->SetAxisLetter(axisLetter[0]);
 				mgr.Show(axisSelectButton, b);
 				mgr.Show(jogTabAxisPos[slot], b);
 				break;
@@ -2605,13 +2605,13 @@ namespace UI
 					homeButtons[slot]->SetEvent(homeButtons[slot]->GetEvent(), letter);
 
 					mgr.Show(homeButtons[slot], !isDelta);
-					ShowAxis(slot, true, axis->letter[0]);
+					ShowAxis(slot, true, axis->letter);
 				}
-				if (IsVisibleAxisPendant(letter) > -1)
+				if (IsVisibleAxisPendant(letter) > -1 && slotP < MaxDisplayableAxesP)
 				{
 					axis->slotP = slotP;
 					jobTabAxisPos[slotP]->SetLabel(letter);
-					ShowAxisP(slotP, slotP < MaxTotalAxes, axis->letter[0]);
+					ShowAxisP(slotP, slotP < MaxDisplayableAxesP, axis->letter);
 					++slotP;
 				}
 			});
