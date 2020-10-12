@@ -155,7 +155,7 @@ bool displayingResponse = false;						// true if displaying a response
 static PixelNumber screensaverTextWidth = 0;
 static uint32_t lastScreensaverMoved = 0;
 
-static int32_t currentTool = -1;
+static int8_t currentTool = -2;							// Initialized to a value never returned by RRF to have the logic for "no tool" applied at startup
 static uint8_t currentWorkplaceNumber = 0;
 static OM::BedOrChamber bedHeater, chamberHeater;
 static bool allAxesHomed = false;
