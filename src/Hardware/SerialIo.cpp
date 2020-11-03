@@ -3,14 +3,17 @@
  *
  * Created: 09/11/2014 09:20:26
  *  Author: David
- */ 
+ */
 
-#include "ecv.h"
-#include "asf.h"
 #include "SerialIo.hpp"
-#include "Library/Vector.hpp"
+#include "asf.h"
+#include "General/String.h"
+#include "General/SafeVsnprintf.h"
 #include "PanelDue.hpp"
-//#include <math.h>
+#define DEBUG (0)
+#if DEBUG
+# include "MessageLog.hpp"
+#endif
 
 const size_t MaxArrayNesting = 4;
 
@@ -28,23 +31,23 @@ namespace SerialIo
 	// Translation tables for combining characters.
 	// The first character in each pair is the character that the combining mark is applied to.
 	// The second character is what is translates to if the value is >=0x80, else the value it translates to minus 0x0100.
-	const char* array const trGrave =		"A\xC0"			"E\xC8" 				"I\xCC"         "O\xD2" "U\xD9"
+	const char* _ecv_array const trGrave =		"A\xC0"			"E\xC8" 				"I\xCC"         "O\xD2" "U\xD9"
 											"a\xE0"			"e\xE8" 				"i\xEC"			"o\xF2" "u\xF9"			;
-	const char* array const trAcute =		"A\xC1" "C\x06" "E\xC9" 				"I\xCD" "L\x39" "N\x43" "O\xD3" "R\x54" "S\x5A" "U\xDA" "Y\xDD"	"Z\x79"
+	const char* _ecv_array const trAcute =		"A\xC1" "C\x06" "E\xC9" 				"I\xCD" "L\x39" "N\x43" "O\xD3" "R\x54" "S\x5A" "U\xDA" "Y\xDD"	"Z\x79"
 											"a\xE1" "c\x07" "e\xE9" 				"i\xED" "l\x39"	"n\x44"	"o\xF3" "r\x55" "s\x5B" "u\xFA" "y\xFD" "z\x7a"	;
-	const char* array const trCircumflex =	"A\xC2" "C\x08" "E\xCA" "G\x1C" "H\x24" "I\xCE" "J\x34"	"O\xD4" "S\x5C" "U\xDB" "W\x74" "Y\x76"
+	const char* _ecv_array const trCircumflex =	"A\xC2" "C\x08" "E\xCA" "G\x1C" "H\x24" "I\xCE" "J\x34"	"O\xD4" "S\x5C" "U\xDB" "W\x74" "Y\x76"
 											"a\xE2" "c\x09" "e\xEA" "g\x1D" "h\x25" "i\xEE" "j\x35"	"o\xF4" "s\x5D" "u\xFB"	"w\x75"	"y\x77"	;
-	const char* array const trTilde =		"A\xC3"                 				"I\x28" "N\xD1" "O\xD5" "U\x68"
+	const char* _ecv_array const trTilde =		"A\xC3"                 				"I\x28" "N\xD1" "O\xD5" "U\x68"
 											"a\xE3"                 				"i\x29"	"n\xF1"	"o\xF5"	"u\x69"			;
-	const char* array const trBreve =		"A\x02"			"E\x14" "G\x1E" 		"I\x2C"			"O\x4E" "U\x6c"
+	const char* _ecv_array const trBreve =		"A\x02"			"E\x14" "G\x1E" 		"I\x2C"			"O\x4E" "U\x6c"
 											"a\x03"			"e\x15" "g\x1F" 		"i\x2D"			"o\x4F" "u\x6d"			;
-	const char* array const trUmlaut =		"A\xC4"			"E\xCB" 				"I\xCF"         "O\xD6" "U\xDC" "Y\x78"
+	const char* _ecv_array const trUmlaut =		"A\xC4"			"E\xCB" 				"I\xCF"         "O\xD6" "U\xDC" "Y\x78"
 											"a\xE4"			"e\xEB" 				"i\xEF"			"o\xF6" "u\xFC" "y\xFF"	;
-	const char* array const trCircle =		"A\xC5"															"U\x6E"
+	const char* _ecv_array const trCircle =		"A\xC5"															"U\x6E"
 											"a\xE5"                                 						"u\x6F"			;
-	const char* array const trCaron =		"C\x0C"	"D\x0C" "E\x1A" "N\x47" "R\x58" "S\x60" "T\x64" "Z\x7D"
+	const char* _ecv_array const trCaron =		"C\x0C"	"D\x0C" "E\x1A" "N\x47" "R\x58" "S\x60" "T\x64" "Z\x7D"
 											"c\x0D" "d\x0F" "e\x1B" "n\x48" "r\x59" "s\x61" "t\x65" "z\x7E"					;
-	const char* array const trCedilla =		"C\xC7"
+	const char* _ecv_array const trCedilla =		"C\xC7"
 											"c\xE7"																			;
 
 	// Initialize the serial I/O subsystem, or re-initialize it with a new baud rate
@@ -68,10 +71,10 @@ namespace SerialIo
 #endif
 		uart_enable_interrupt(UARTn, UART_IER_RXRDY | UART_IER_OVRE | UART_IER_FRAME);
 	}
-	
+
 	uint16_t numChars = 0;
 	uint8_t checksum = 0;
-	
+
 	// Send a character to the 3D printer.
 	// A typical command string is only about 12 characters long, which at 115200 baud takes just over 1ms to send.
 	// So there is no particular reason to use interrupts, and by so doing so we avoid having to handle buffer full situations.
@@ -79,12 +82,12 @@ namespace SerialIo
 	{
 		while(uart_write(UARTn, c) != 0) { }
 	}
-	
+
 	void SendCharAndChecksum(char c)
 	{
 		checksum ^= c;
 		RawSendChar(c);
-		++numChars;	
+		++numChars;
 	}
 
 	void SendChar(char c)
@@ -123,23 +126,36 @@ namespace SerialIo
 			SendCharAndChecksum(c);
 		}
 	}
-	
-	void SendString(const char * array s)
+
+	size_t Sendf(const char *fmt, ...) noexcept
+	{
+		va_list vargs;
+		va_start(vargs, fmt);
+		return vuprintf([](char c) noexcept -> bool {
+			if (c != 0)
+			{
+				SendChar(c);
+			}
+			return true;
+		}, fmt, vargs);
+	}
+
+	void SendString(const char * _ecv_array s)
 	{
 		while (*s != 0)
 		{
 			SendChar(*s++);
 		}
 	}
-	
-	void SendQuoted(const char * array s)
+
+	void SendQuoted(const char * _ecv_array s)
 	{
 		SendChar('"');
 		SendString(s);
 		SendChar('"');
 	}
 
-	void SendFilename(const char * array dir, const char * array name)
+	void SendFilename(const char * _ecv_array dir, const char * _ecv_array name)
 	{
 		if (GetFirmwareFeatures() & quoteFilenames)
 		{
@@ -158,7 +174,7 @@ namespace SerialIo
 			{
 				SendChar('/');
 			}
-			
+
 		}
 		SendString(name);
 		if (GetFirmwareFeatures() & quoteFilenames)
@@ -186,26 +202,7 @@ namespace SerialIo
 	// SendFloat will convert a float into a rounded fixed 3 decimal representation.
 	void SendFloat(float f)
 	{
-		String<20> fl;
-		fl.printf("%.3f", f);
-		SendString(fl.c_str());
-//		if (f < 0) {
-//			SendChar('-');
-//			f = -f;
-//		}
-//		const int i = (int) f;
-//		const unsigned int d = (unsigned int) lrintf((f - i) * 1000);
-//		SendInt(i);
-//		SendChar('.');
-//		if (d < 100)
-//		{
-//			SendChar('0');
-//			if (d < 10)
-//			{
-//				SendChar('0');
-//			}
-//		}
-//		SendInt(d);
+		Sendf("%.3f", f);
 	}
 
 	// Receive data processing
@@ -214,11 +211,11 @@ namespace SerialIo
 	static volatile size_t nextIn = 0;
 	static size_t nextOut = 0;
 	static bool inError = false;
-	
+
 	// Enumeration to represent the json parsing state.
 	// We don't allow nested objects or nested arrays, so we don't need a state stack.
 	// An additional variable elementCount is 0 if we are not in an array, else the number of elements we have found (including the current one)
-	enum JsonState 
+	enum JsonState
 	{
 		jsBegin,			// initial state, expecting '{'
 		jsExpectId,			// just had '{' so expecting a quoted ID
@@ -230,11 +227,11 @@ namespace SerialIo
 		jsIntVal,			// receiving an integer value
 		jsNegIntVal,		// had '-' so expecting a integer value
 		jsFracVal,			// receiving a fractional value
-		jsEndVal,			// had the end of a string or array value, expecting comma or ] or }
+		jsEndVal,			// had the end of a string or _ecv_array value, expecting comma or ] or }
 		jsCharsVal,			// receiving an alphanumeric value such as true, false, null
 		jsError				// something went wrong
 	};
-	
+
 	JsonState state = jsBegin;
 
 	// fieldId is the name of the field being received. A '^' character indicates the position of an array index, and a ':' character indicates a field separator.
@@ -242,45 +239,63 @@ namespace SerialIo
 	String<300> fieldVal;	// long enough for about 6 lines of message
 	size_t arrayIndices[MaxArrayNesting];
 	size_t arrayDepth = 0;
-	
+
 	static void RemoveLastId()
 	{
-		size_t index = fieldId.size();
+#if DEBUG
+		MessageLog::AppendMessage(150, "RemoveLastId: %s, len: %d", fieldId.c_str(), fieldId.strlen());
+#endif
+		size_t index = fieldId.strlen();
 		while (index != 0 && fieldId[index - 1] != '^' && fieldId[index - 1] != ':')
 		{
 			--index;
 		}
-		fieldId.truncate(index);
+		fieldId.Truncate(index);
+#if DEBUG
+		MessageLog::AppendMessage(150, "RemoveLastId: %s, len: %d", fieldId.c_str(), fieldId.strlen());
+#endif
 	}
 
 	static void RemoveLastIdChar()
 	{
-		if (fieldId.size() != 0)
+#if DEBUG
+		MessageLog::AppendMessage("RemoveLastIdChar");
+#endif
+		if (fieldId.strlen() != 0)
 		{
-			fieldId.truncate(fieldId.size() - 1);
+			fieldId.Truncate(fieldId.strlen() - 1);
 		}
 	}
 
 	static bool InArray()
 	{
-		return fieldId.size() > 0 && fieldId[fieldId.size() - 1] == '^';
+#if DEBUG
+		MessageLog::AppendMessage("InArray");
+#endif
+		return fieldId.strlen() > 0 && fieldId[fieldId.strlen() - 1] == '^';
 	}
 
 	static void ProcessField()
 	{
+#if DEBUG
+		MessageLog::AppendMessage("ProcessField");
+#endif
 		if (state == jsCharsVal)
 		{
-			if (fieldVal.equals("null"))
+			if (fieldVal.Equals("null"))
 			{
-				fieldVal.clear();				// so that we can distinguish null from an empty string
+				fieldVal.Clear();				// so that we can distinguish null from an empty string
 			}
 		}
-		ProcessReceivedValue(fieldId.c_str(), fieldVal.c_str(), arrayIndices);
-		fieldVal.clear();
+		ProcessReceivedValue(fieldId.GetRef(), fieldVal.c_str(), arrayIndices);
+		fieldVal.Clear();
 	}
-	
+
 	static void EndArray()
 	{
+#if DEBUG
+		MessageLog::AppendMessage("EndArray");
+#endif
 		ProcessArrayEnd(fieldId.c_str(), arrayIndices);
 		if (arrayDepth != 0)			// should always be true
 		{
@@ -288,13 +303,13 @@ namespace SerialIo
 			RemoveLastIdChar();
 		}
 	}
-	
+
 	// Look for combining characters in the string value and convert them if possible
 	static void ConvertUnicode()
 	{
 		unsigned int numContinuationBytesLeft = 0;
 		uint32_t charVal;
-		for (size_t i = 0; i < fieldVal.size(); )
+		for (size_t i = 0; i < fieldVal.strlen(); )
 		{
 			const unsigned char c = fieldVal[i++];
 			if (numContinuationBytesLeft == 0)
@@ -334,7 +349,7 @@ namespace SerialIo
 				--numContinuationBytesLeft;
 				if (numContinuationBytesLeft == 0)
 				{
-					const char* array trtab;
+					const char* _ecv_array trtab;
 					switch(charVal)
 					{
 					case 0x0300:	// grave accent
@@ -388,7 +403,7 @@ namespace SerialIo
 							}
 							fieldVal[i - 3] = (c3 >> 6) | 0xC0;
 							fieldVal[i - 2] = (c3 & 0x3F) | 0x80;
-							fieldVal.erase(i - 1);
+							fieldVal.Erase(i - 1);
 							--i;
 						}
 					}
@@ -405,6 +420,9 @@ namespace SerialIo
 	// Check whether the incoming character signals the end of the value. If it does, process it and return true.
 	static bool CheckValueCompleted(char c, bool doProcess)
 	{
+#if DEBUG
+		MessageLog::AppendMessage("CheckValueCompleted");
+#endif
 		switch(c)
 		{
 		case ',':
@@ -415,7 +433,7 @@ namespace SerialIo
 			if (InArray())
 			{
 				++arrayIndices[arrayDepth - 1];
-				fieldVal.clear();
+				fieldVal.Clear();
 				state = jsVal;
 			}
 			else
@@ -439,6 +457,9 @@ namespace SerialIo
 			else
 			{
 				state = jsError;
+#if DEBUG
+				MessageLog::AppendMessage("jsError: CheckValueCompleted: ]");
+#endif
 			}
 			return true;
 
@@ -446,6 +467,9 @@ namespace SerialIo
 			if (InArray())
 			{
 				state = jsError;
+#if DEBUG
+				MessageLog::AppendMessage("jsError: CheckValueCompleted: }");
+#endif
 			}
 			else
 			{
@@ -454,7 +478,7 @@ namespace SerialIo
 					ProcessField();
 				}
 				RemoveLastId();
-				if (fieldId.size() == 0)
+				if (fieldId.strlen() == 0)
 				{
 					EndReceivedMessage();
 					state = jsBegin;
@@ -481,6 +505,13 @@ namespace SerialIo
 			nextOut = (nextOut + 1) % rxBufsize;
 			if (c == '\n')
 			{
+				if (state == jsError)
+				{
+#if DEBUG
+						MessageLog::AppendMessage("ParserErrorEncountered");
+#endif
+					ParserErrorEncountered(); // Notify the consumer that we ran into an error
+				}
 				state = jsBegin;		// abandon current parse (if any) and start again
 			}
 			else
@@ -492,8 +523,8 @@ namespace SerialIo
 					{
 						StartReceivedMessage();
 						state = jsExpectId;
-						fieldVal.clear();
-						fieldId.clear();
+						fieldVal.Clear();
+						fieldId.Clear();
 						arrayDepth = 0;
 					}
 					break;
@@ -508,7 +539,7 @@ namespace SerialIo
 						break;
 					case '}':			// empty object, or extra comma at end of field list
 						RemoveLastId();
-						if (fieldId.size() == 0)
+						if (fieldId.strlen() == 0)
 						{
 							EndReceivedMessage();
 							state = jsBegin;
@@ -521,10 +552,13 @@ namespace SerialIo
 						break;
 					default:
 						state = jsError;
+#if DEBUG
+						MessageLog::AppendMessage("jsError: jsExpectId");
+#endif
 						break;
 					}
 					break;
-						
+
 				case jsId:				// expecting an identifier, or in the middle of one
 					switch (c)
 					{
@@ -535,18 +569,24 @@ namespace SerialIo
 						if (c < ' ')
 						{
 							state = jsError;
+#if DEBUG
+							MessageLog::AppendMessage("jsError: jsId 1");
+#endif
 						}
 						else if (c != ':' && c != '^')
 						{
-							if (!fieldId.add(c))
+							if (fieldId.cat(c))
 							{
 								state = jsError;
+#if DEBUG
+								MessageLog::AppendMessage("jsError: jsId 2");
+#endif
 							}
 						}
 						break;
 					}
 					break;
-	
+
 				case jsHadId:			// had a quoted identifier, expecting ':'
 					switch(c)
 					{
@@ -557,6 +597,9 @@ namespace SerialIo
 						break;
 					default:
 						state = jsError;
+#if DEBUG
+						MessageLog::AppendMessage("jsError: jsHadId");
+#endif
 						break;
 					}
 					break;
@@ -567,11 +610,11 @@ namespace SerialIo
 					case ' ':
 						break;
 					case '"':
-						fieldVal.clear();
+						fieldVal.Clear();
 						state = jsStringVal;
 						break;
 					case '[':
-						if (arrayDepth < MaxArrayNesting && fieldId.add('^'))
+						if (arrayDepth < MaxArrayNesting && !fieldId.cat('^'))
 						{
 							arrayIndices[arrayDepth] = 0;		// start an array
 							++arrayDepth;
@@ -579,6 +622,9 @@ namespace SerialIo
 						else
 						{
 							state = jsError;
+#if DEBUG
+							MessageLog::AppendMessage("jsError: [");
+#endif
 						}
 						break;
 					case ']':
@@ -590,36 +636,48 @@ namespace SerialIo
 						else
 						{
 							state = jsError;	// ']' received without a matching '[' first
+#if DEBUG
+							MessageLog::AppendMessage("jsError: ]");
+#endif
 						}
 						break;
 					case '-':
-						fieldVal.clear();
-						fieldVal.add(c);
+						fieldVal.Clear();
+						fieldVal.cat(c);
 						state = jsNegIntVal;
 						break;
 					case '{':					// start of a nested object
-						state = (fieldId.add(':')) ? jsExpectId : jsError;
+						state = (!fieldId.cat(':')) ? jsExpectId : jsError;
+#if DEBUG
+						if (state == jsError)
+						{
+							MessageLog::AppendMessage("jsError: {");
+						}
+#endif
 						break;
 					default:
 						if (c >= '0' && c <= '9')
 						{
-							fieldVal.clear();
-							fieldVal.add(c);	// must succeed because we just cleared fieldVal
+							fieldVal.Clear();
+							fieldVal.cat(c);	// must succeed because we just cleared fieldVal
 							state = jsIntVal;
 						}
 						else if (c >= 'a' && c <= 'z')
 						{
-							fieldVal.clear();
-							fieldVal.add(c);	// must succeed because we just cleared fieldVal
+							fieldVal.Clear();
+							fieldVal.cat(c);	// must succeed because we just cleared fieldVal
 							state = jsCharsVal;
 						}
 						else
 						{
 							state = jsError;
+#if DEBUG
+							MessageLog::AppendMessage("jsError: jsVal default");
+#endif
 						}
 					}
 					break;
-					
+
 				case jsStringVal:		// just had '"' and expecting a string value
 					switch (c)
 					{
@@ -635,33 +693,42 @@ namespace SerialIo
 						if (c < ' ')
 						{
 							state = jsError;
+#if DEBUG
+							MessageLog::AppendMessage("jsError: jsStringVal");
+#endif
 						}
 						else
 						{
-							fieldVal.add(c);	// ignore any error so that long string parameters just get truncated
+							fieldVal.cat(c);	// ignore any error so that long string parameters just get truncated
 						}
 						break;
 					}
 					break;
 
 				case jsStringEscape:	// just had backslash in a string
-					if (!fieldVal.full())
+					if (!fieldVal.IsFull())
 					{
 						switch (c)
 						{
 						case '"':
 						case '\\':
 						case '/':
-							if (!fieldVal.add(c))
+							if (fieldVal.cat(c))
 							{
 								state = jsError;
+#if DEBUG
+								MessageLog::AppendMessage("jsError: jsStringEscape 1");
+#endif
 							}
 							break;
 						case 'n':
 						case 't':
-							if (!fieldVal.add(' '))		// replace newline and tab by space
+							if (fieldVal.cat(' '))		// replace newline and tab by space
 							{
 								state = jsError;
+#if DEBUG
+								MessageLog::AppendMessage("jsError: jsStringEscape 2");
+#endif
 							}
 							break;
 						case 'b':
@@ -675,9 +742,15 @@ namespace SerialIo
 					break;
 
 				case jsNegIntVal:		// had '-' so expecting a integer value
-					state = (c >= '0' && c <= '9' && fieldVal.add(c)) ? jsIntVal : jsError;
+					state = (c >= '0' && c <= '9' && !fieldVal.cat(c)) ? jsIntVal : jsError;
+#if DEBUG
+						if (state == jsError)
+						{
+							MessageLog::AppendMessage("jsError: jsNegIntVal");
+						}
+#endif
 					break;
-					
+
 				case jsIntVal:			// receiving an integer value
 					if (CheckValueCompleted(c, true))
 					{
@@ -686,11 +759,20 @@ namespace SerialIo
 
 					if (c == '.')
 					{
-						state = (fieldVal.add(c)) ? jsFracVal : jsError;
+						state = (!fieldVal.cat(c)) ? jsFracVal : jsError;
+#if DEBUG
+						if (state == jsError)
+						{
+							MessageLog::AppendMessage("jsError: jsIntVal");
+						}
+#endif
 					}
-					else if (!(c >= '0' && c <= '9' && fieldVal.add(c)))
+					else if (!(c >= '0' && c <= '9' && !fieldVal.cat(c)))
 					{
 						state = jsError;
+#if DEBUG
+						MessageLog::AppendMessage("jsError: jsIntVal");
+#endif
 					}
 					break;
 
@@ -700,9 +782,12 @@ namespace SerialIo
 						break;
 					}
 
-					if (!(c >= '0' && c <= '9' && fieldVal.add(c)))
+					if (!(c >= '0' && c <= '9' && !fieldVal.cat(c)))
 					{
 						state = jsError;
+#if DEBUG
+						MessageLog::AppendMessage("jsError: jsFracVal");
+#endif
 					}
 					break;
 
@@ -712,9 +797,12 @@ namespace SerialIo
 						break;
 					}
 
-					if (!(c >= 'a' && c <= 'z' && fieldVal.add(c)))
+					if (!(c >= 'a' && c <= 'z' && !fieldVal.cat(c)))
 					{
 						state = jsError;
+#if DEBUG
+						MessageLog::AppendMessage("jsError: jsCharsVal");
+#endif
 					}
 					break;
 
@@ -725,6 +813,9 @@ namespace SerialIo
 					}
 
 					state = jsError;
+#if DEBUG
+					MessageLog::AppendMessage("jsError: jsEndVal");
+#endif
 					break;
 
 				case jsError:
@@ -734,7 +825,7 @@ namespace SerialIo
 			}
 		}
 	}
-	
+
 	// Called by the ISR to store a received character.
 	// If the buffer is full, we wait for the next end-of-line.
 	void receiveChar(char c)
@@ -757,7 +848,7 @@ namespace SerialIo
 			}
 		}
 	}
-	
+
 	// Called by the ISR to signify an error. We wait for the next end of line.
 	void receiveError()
 	{
@@ -786,9 +877,9 @@ extern "C" {
 		{
 			UARTn->UART_CR |= UART_CR_RSTSTA;
 			SerialIo::receiveError();
-		}	
+		}
 	}
-	
+
 };
 
 // End

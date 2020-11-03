@@ -3,13 +3,16 @@
  *
  * Created: 31/10/2014 17:48:22
  *  Author: David
- */ 
+ */
 
 
 #ifndef PRINT_H_
 #define PRINT_H_
 
 #include "ecv.h"
+#undef array
+#undef result
+#undef value
 #include <cstdint>
 #include <cstddef>
 #include <cstring>
@@ -27,7 +30,7 @@ private:
 
 public:
 	Print() {}
-	
+
 	virtual size_t write(uint8_t c) = 0;
 
 	size_t print(const char[]);

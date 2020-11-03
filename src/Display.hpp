@@ -3,13 +3,16 @@
  *
  * Created: 04/11/2014 09:43:43
  *  Author: David
- */ 
+ */
 
 
 #ifndef DISPLAY_H_
 #define DISPLAY_H_
 
 #include "ecv.h"
+#undef array
+#undef result
+#undef value
 #include "Hardware/UTFT.hpp"
 #include "DisplaySize.hpp"
 #include <math.h>
@@ -19,11 +22,11 @@
 #endif
 
 // Fonts are held as arrays of 8-bit data in flash.
-typedef const uint8_t * array LcdFont;
+typedef const uint8_t * _ecv_array LcdFont;
 
-// An icon is stored an array of uint16_t data normally held in flash memory. The first value is the width in pixels, the second is the height in pixels.
+// An icon is stored an _ecv_array of uint16_t data normally held in flash memory. The first value is the width in pixels, the second is the height in pixels.
 // After that comes the icon data, 16 bits per pixel, one row at a time.
-typedef const uint8_t * array Icon;
+typedef const uint8_t * _ecv_array Icon;
 
 // Unicode strings for special characters in our font
 #define DECIMAL_POINT	"\xC2\xB7"		// Unicode middle-dot, code point B7
@@ -44,7 +47,7 @@ typedef uint8_t event_t;
 const event_t nullEvent = 0;
 
 enum class TextAlignment : uint8_t { Left, Centre, Right };
-	
+
 class ButtonBase;
 
 // Small by-value class to identify what button has been pressed
@@ -52,23 +55,23 @@ class ButtonPress
 {
 	ButtonBase * null button;
 	unsigned int index;
-	
+
 public:
 	ButtonPress();
-	ButtonPress(ButtonBase *b, unsigned int pi);	
+	ButtonPress(ButtonBase *b, unsigned int pi);
 	void Set(ButtonBase *b, unsigned int pi);
 	void Clear();
-	
+
 	bool IsValid() const { return button != nullptr; }
 	ButtonBase * GetButton() const { return button; }
 	unsigned int GetIndex() const { return index; }
 
-	event_t GetEvent() const;		
+	event_t GetEvent() const;
 	int GetIParam() const;
 	float GetFParam() const;
-	const char* array GetSParam() const;		
+	const char* _ecv_array GetSParam() const;
 	bool operator==(const ButtonPress& other) const;
-	
+
 	bool operator!=(const ButtonPress& other) const { return !operator==(other); }
 };
 
@@ -84,16 +87,16 @@ protected:
 			underlined : 1,						// really belongs in class FieldWithText, but stored here to save space
 			border : 1,							// really belongs in class FieldWithText, but stored here to save space
 			textRows : 2;						// really belongs in class FieldWithText, but stored here to save space
-	
+
 	static LcdFont defaultFont;
 	static Colour defaultFcolour, defaultBcolour;
 	static Colour defaultButtonBorderColour, defaultGradColour, defaultPressedBackColour, defaultPressedGradColour;
 	static Palette defaultIconPalette;
-	
+
 protected:
 	DisplayField(PixelNumber py, PixelNumber px, PixelNumber pw);
-	
-	void SetTextRows(const char * array t);
+
+	void SetTextRows(const char * _ecv_array t);
 	virtual PixelNumber GetHeight() const = 0;
 	virtual void CheckEvent(PixelNumber x, PixelNumber y, int& bestError, ButtonPress& best) { UNUSED(x); UNUSED(y); UNUSED(bestError); UNUSED(best); }
 
@@ -121,14 +124,14 @@ public:
 	static void SetDefaultColours(Colour pf, Colour pb, Colour pbb, Colour pg, Colour pbp, Colour pgp, Palette pal);
 	static void SetDefaultFont(LcdFont pf) { defaultFont = pf; }
 	static ButtonPress FindEvent(PixelNumber x, PixelNumber y, DisplayField * null p);
-	
+
 	// Icon management
 	static PixelNumber GetIconWidth(Icon ic) { return ic[0]; }
 	static PixelNumber GetIconHeight(Icon ic) { return ic[1]; }
-	static const uint8_t * array GetIconData(Icon ic) { return ic + 2; }
+	static const uint8_t * _ecv_array GetIconData(Icon ic) { return ic + 2; }
 
-	static PixelNumber GetTextWidth(const char* array s, PixelNumber maxWidth);						// find out how much width we need to print this text
-	static PixelNumber GetTextWidth(const char* array s, PixelNumber maxWidth, size_t maxChars);	// find out how much width we need to print this text
+	static PixelNumber GetTextWidth(const char* _ecv_array s, PixelNumber maxWidth);						// find out how much width we need to print this text
+	static PixelNumber GetTextWidth(const char* _ecv_array s, PixelNumber maxWidth, size_t maxChars);	// find out how much width we need to print this text
 };
 
 class PopupWindow;
@@ -139,7 +142,7 @@ protected:
 	DisplayField * null root;
 	PopupWindow * null next;
 	Colour backgroundColour;
-	
+
 public:
 	Window(Colour pb);
 	virtual PixelNumber Xpos() const { return 0; }
@@ -181,7 +184,7 @@ class PopupWindow : public Window
 private:
 	PixelNumber height, width, xPos, yPos;
 	Colour borderColour;
-	
+
 public:
 	PopupWindow(PixelNumber ph, PixelNumber pw, Colour pb, Colour pBorder);
 
@@ -215,10 +218,10 @@ class FieldWithText : public DisplayField
 {
 	LcdFont font;
 	TextAlignment align;
-	
+
 protected:
 	PixelNumber GetHeight() const override;
-	
+
 	virtual void PrintText() const = 0;
 
 	FieldWithText(PixelNumber py, PixelNumber px, PixelNumber pw, TextAlignment pa, bool withBorder, bool isUnderlined = false)
@@ -228,7 +231,7 @@ protected:
 		border = withBorder;
 		textRows = 1;
 	}
-		
+
 public:
 	void Refresh(bool full, PixelNumber xOffset, PixelNumber yOffset) override final;
 };
@@ -236,26 +239,26 @@ public:
 // Class to display a fixed label and some variable text
 class TextField : public FieldWithText
 {
-	const char* array null label;
-	const char* array null text;
-	
+	const char* _ecv_array null label;
+	const char* _ecv_array null text;
+
 protected:
 	void PrintText() const override;
 
 public:
 	TextField(PixelNumber py, PixelNumber px, PixelNumber pw, TextAlignment pa,
-				const char * array null pl, const char* array null pt = nullptr, bool withBorder = false)
+				const char * _ecv_array null pl, const char* _ecv_array null pt = nullptr, bool withBorder = false)
 		: FieldWithText(py, px, pw, pa, withBorder), label(pl), text(pt)
 	{
 	}
 
-	void SetValue(const char* array s)
+	void SetValue(const char* _ecv_array s)
 	{
 		text = s;
 		changed = true;
 	}
 
-	void SetLabel(const char* array s)
+	void SetLabel(const char* _ecv_array s)
 	{
 		label = s;
 		changed = true;
@@ -265,8 +268,8 @@ public:
 // Class to display an optional label, a floating point value, and an optional units string
 class FloatField : public FieldWithText
 {
-	const char* array null label;
-	const char* array null units;
+	const char* _ecv_array null label;
+	const char* _ecv_array null units;
 	float val;
 	uint8_t numDecimals;
 
@@ -275,10 +278,12 @@ protected:
 
 public:
 	FloatField(PixelNumber py, PixelNumber px, PixelNumber pw, TextAlignment pa, uint8_t pd,
-			const char * array pl = nullptr, const char * array null pu = nullptr, bool withBorder = false)
+			const char * _ecv_array pl = nullptr, const char * _ecv_array null pu = nullptr, bool withBorder = false)
 		: FieldWithText(py, px, pw, pa, withBorder), label(pl), units(pu), val(0.0), numDecimals(pd)
 	{
 	}
+
+	float GetValue() const noexcept { return val; }
 
 	void SetValue(float v)
 	{
@@ -290,7 +295,7 @@ public:
 		changed = true;
 	}
 
-	void SetLabel(const char* array s)
+	void SetLabel(const char* _ecv_array s)
 	{
 		if (strcmp(label, s) == 0)
 		{
@@ -304,8 +309,8 @@ public:
 // Class to display an optional label, an integer value, and an optional units string
 class IntegerField : public FieldWithText
 {
-	const char* array null label;
-	const char* array null units;
+	const char* _ecv_array null label;
+	const char* _ecv_array null units;
 	int val;
 
 protected:
@@ -332,20 +337,20 @@ public:
 // Class to display a text string only
 class StaticTextField : public FieldWithText
 {
-	const char * array null text;
+	const char * _ecv_array null text;
 
 protected:
 	void PrintText() const override;
 
 public:
-	StaticTextField(PixelNumber py, PixelNumber px, PixelNumber pw, TextAlignment pa, const char * array null pt, bool isUnderlined = false)
+	StaticTextField(PixelNumber py, PixelNumber px, PixelNumber pw, TextAlignment pa, const char * _ecv_array null pt, bool isUnderlined = false)
 		: FieldWithText(py, px, pw, pa, false, isUnderlined), text(pt)
 	{
 		SetTextRows(pt);
 	}
 
 	// Change the value
-	void SetValue(const char* array null pt, bool forceUpdate = false)
+	void SetValue(const char* _ecv_array null pt, bool forceUpdate = false)
 	{
 		if (strcmp(text, pt) == 0)
 		{
@@ -395,9 +400,9 @@ class SingleButton : public ButtonBase
 
 protected:
 	SingleButton(PixelNumber py, PixelNumber px, PixelNumber pw);
-	
+
 	void DrawOutline(PixelNumber xOffset, PixelNumber yOffset) const;
-	
+
 public:
 	bool IsButton() const override final { return true; }
 
@@ -412,7 +417,7 @@ public:
 	float GetFParam(unsigned int index) const { UNUSED(index); return param.fParam; }
 
 	void Press(bool p, int index) override;
-	
+
 	static void SetTextMargin(PixelNumber p) { textMargin = p; }
 	static void SetIconMargin(PixelNumber p) { iconMargin = p; }
 };
@@ -420,7 +425,7 @@ public:
 class ButtonWithText : public SingleButton
 {
 	static LcdFont font;
-	
+
 protected:
 	PixelNumber GetHeight() const override;
 
@@ -431,7 +436,7 @@ public:
 		: SingleButton(py, px, pw) {}
 
 	void Refresh(bool full, PixelNumber xOffset, PixelNumber yOffset) override final;
-	
+
 	static void SetFont(LcdFont f) { font = f; }
 };
 
@@ -452,7 +457,7 @@ protected:
 	unsigned int numButtons;
 	int whichPressed;
 	PixelNumber step;
-	
+
 public:
 	ButtonRow(PixelNumber py, PixelNumber px, PixelNumber pw, PixelNumber ps, unsigned int nb, event_t e);
 };
@@ -476,17 +481,17 @@ public:
 // Row of character buttons, used to build a keyboard
 class CharButtonRow : public ButtonRowWithText
 {
-	const char * array text;
+	const char * _ecv_array text;
 
 protected:
 	void PrintText(unsigned int n) const override;
 	void CheckEvent(PixelNumber x, PixelNumber y, int& bestError, ButtonPress& best) override;
 
 public:
-	CharButtonRow(PixelNumber py, PixelNumber px, PixelNumber pw, PixelNumber ps, const char * array s, event_t e);
+	CharButtonRow(PixelNumber py, PixelNumber px, PixelNumber pw, PixelNumber ps, const char * _ecv_array s, event_t e);
 	int GetIParam(unsigned int index) const override { return (int)text[index]; }
 	void Press(bool p, int index) override;
-	void ChangeText(const char* array s);
+	void ChangeText(const char* _ecv_array s);
 };
 
 // Standard button with text
@@ -494,19 +499,19 @@ class TextButton : public ButtonWithText
 {
 	friend class ShadowTextButton;
 
-	const char * array null text;
-	
+	const char * _ecv_array null text;
+
 protected:
 	size_t PrintText(size_t offset) const override;
 
 public:
-	TextButton(PixelNumber py, PixelNumber px, PixelNumber pw, const char * array null pt, event_t e, int param = 0);
-	TextButton(PixelNumber py, PixelNumber px, PixelNumber pw, const char * array null pt, event_t e, const char * array param);
+	TextButton(PixelNumber py, PixelNumber px, PixelNumber pw, const char * _ecv_array null pt, event_t e, int param = 0);
+	TextButton(PixelNumber py, PixelNumber px, PixelNumber pw, const char * _ecv_array null pt, event_t e, const char * _ecv_array param);
 
 	// Hide any text buttons with null text
 	bool IsVisible() const override { return text != nullptr && DisplayField::IsVisible(); }
 
-	void SetText(const char* array null pt)
+	void SetText(const char* _ecv_array null pt)
 	{
 		if (strcmp(text, pt) == 0)
 		{
@@ -517,14 +522,37 @@ public:
 	}
 };
 
+class TextButtonWithLabel : public TextButton
+{
+	const char * _ecv_array null label;
+protected:
+	size_t PrintText(size_t offset) const override;
+public:
+	TextButtonWithLabel(PixelNumber py, PixelNumber px, PixelNumber pw, const char * _ecv_array null pt, event_t e, int param = 0, const char* _ecv_array null label = nullptr);
+	TextButtonWithLabel(PixelNumber py, PixelNumber px, PixelNumber pw, const char * _ecv_array null pt, event_t e, const char * _ecv_array param, const char* _ecv_array null label = nullptr);
+
+	// Hide any text buttons with null text and null label
+	bool IsVisible() const override { return (label != nullptr && DisplayField::IsVisible()) || TextButton::IsVisible(); }
+
+	void SetLabel(const char* _ecv_array null label)
+	{
+		if (strcmp(this->label, label) == 0)
+		{
+			return;
+		}
+		this->label = label;
+		changed = true;
+	}
+};
+
 class TextButtonForAxis : public TextButton
 {
 private:
 	char axisLetter;
 public:
-	TextButtonForAxis(PixelNumber py, PixelNumber px, PixelNumber pw, const char * array null pt, event_t e, int param = 0)
+	TextButtonForAxis(PixelNumber py, PixelNumber px, PixelNumber pw, const char * _ecv_array null pt, event_t e, int param = 0)
 		: TextButton(py, px, pw, pt, e, param), axisLetter('\0') {}
-	TextButtonForAxis(PixelNumber py, PixelNumber px, PixelNumber pw, const char * array null pt, event_t e, const char * array param)
+	TextButtonForAxis(PixelNumber py, PixelNumber px, PixelNumber pw, const char * _ecv_array null pt, event_t e, const char * _ecv_array param)
 		: TextButton(py, px, pw, pt, e, param), axisLetter('\0') {}
 
 	char GetAxisLetter() const { return this->axisLetter; }
@@ -534,14 +562,14 @@ public:
 // Standard button with an icon
 class IconButton : public SingleButton
 {
-	
+
 protected:
 	Icon icon;
 	PixelNumber GetHeight() const override { return GetIconHeight(icon) + 2 * iconMargin + 2; }
 
 public:
 	IconButton(PixelNumber py, PixelNumber px, PixelNumber pw, Icon ic, event_t e, int param = 0);
-	IconButton(PixelNumber py, PixelNumber px, PixelNumber pw, Icon ic, event_t e, const char * array param);
+	IconButton(PixelNumber py, PixelNumber px, PixelNumber pw, Icon ic, event_t e, const char * _ecv_array param);
 
 	void Refresh(bool full, PixelNumber xOffset, PixelNumber yOffset) override;
 };
@@ -550,7 +578,7 @@ public:
 class IconButtonWithText : public IconButton
 {
 	LcdFont font;
-	const char * array null text;
+	const char * _ecv_array null text;
 	int val;
 	bool printText;
 	bool drawIcon;
@@ -560,9 +588,9 @@ protected:
 
 public:
 	IconButtonWithText(PixelNumber py, PixelNumber px, PixelNumber pw, Icon ic, event_t e, const char * text, int param = 0);
-	IconButtonWithText(PixelNumber py, PixelNumber px, PixelNumber pw, Icon ic, event_t e, const char * text, const char * array param);
+	IconButtonWithText(PixelNumber py, PixelNumber px, PixelNumber pw, Icon ic, event_t e, const char * text, const char * _ecv_array param);
 	IconButtonWithText(PixelNumber py, PixelNumber px, PixelNumber pw, Icon ic, event_t e, int textVal, int param = 0);
-	IconButtonWithText(PixelNumber py, PixelNumber px, PixelNumber pw, Icon ic, event_t e, int textVal, const char * array param);
+	IconButtonWithText(PixelNumber py, PixelNumber px, PixelNumber pw, Icon ic, event_t e, int textVal, const char * _ecv_array param);
 
 	void Refresh(bool full, PixelNumber xOffset, PixelNumber yOffset) override final;
 
@@ -612,15 +640,15 @@ public:
 // Button that displays an integer value, optionally preceded by a label and followed by units
 class IntegerButton : public ButtonWithText
 {
-	const char* array null label;
-	const char* array null units;
+	const char* _ecv_array null label;
+	const char* _ecv_array null units;
 	int val;
 
 protected:
 	size_t PrintText(size_t offset) const override;
 
 public:
-	IntegerButton(PixelNumber py, PixelNumber px, PixelNumber pw, const char * array pl = nullptr, const char * array pt = nullptr)
+	IntegerButton(PixelNumber py, PixelNumber px, PixelNumber pw, const char * _ecv_array pl = nullptr, const char * _ecv_array pt = nullptr)
 		: ButtonWithText(py, px, pw), label(pl), units(pt), val(0) {}
 
 	int GetValue() const { return val; }
@@ -645,7 +673,7 @@ public:
 // Button that displays a float value, optionally followed by units
 class FloatButton : public ButtonWithText
 {
-	const char * array null units;
+	const char * _ecv_array null units;
 	float val;
 	uint8_t numDecimals;
 
@@ -653,7 +681,7 @@ protected:
 	size_t PrintText(size_t offset) const override;
 
 public:
-	FloatButton(PixelNumber py, PixelNumber px, PixelNumber pw, uint8_t pd, const char * array pt = nullptr)
+	FloatButton(PixelNumber py, PixelNumber px, PixelNumber pw, uint8_t pd, const char * _ecv_array pt = nullptr)
 		: ButtonWithText(py, px, pw), units(pt), val(0.0), numDecimals(pd) {}
 
 	float GetValue() const { return val; }
@@ -686,9 +714,9 @@ public:
 		: DisplayField(py, px, pw), lastNumPixelsSet(0), height(ph), percent(0)
 	{
 	}
-	
+
 	void Refresh(bool full, PixelNumber xOffset, PixelNumber yOffset) override;
-	
+
 	PixelNumber GetHeight() const override { return height; }
 
 	void SetPercent(uint8_t pc)
@@ -704,11 +732,11 @@ public:
 
 class StaticImageField: public DisplayField
 {
-	const uint16_t * array data;					// compressed bitmap
+	const uint16_t * _ecv_array data;					// compressed bitmap
 	PixelNumber height;
 
 public:
-	StaticImageField(PixelNumber py, PixelNumber px, PixelNumber ph, PixelNumber pw, const uint16_t * array imageData)
+	StaticImageField(PixelNumber py, PixelNumber px, PixelNumber ph, PixelNumber pw, const uint16_t * _ecv_array imageData)
 		: DisplayField(py, px, pw), data(imageData), height(ph)
 	{
 	}

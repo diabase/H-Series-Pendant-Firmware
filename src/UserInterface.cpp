@@ -14,7 +14,8 @@
 #include "FileManager.hpp"
 #include "MessageLog.hpp"
 #include "Library/Misc.hpp"
-#include "Library/Vector.hpp"
+#include "General/String.h"
+#include "General/SafeVsnprintf.h"
 #include "Icons/Icons.hpp"
 #include "Hardware/Buzzer.hpp"
 #include "Hardware/Reset.hpp"
@@ -59,7 +60,7 @@ static TextButton *controlPageMacroButtons[NumControlPageMacroButtons];
 static String<controlPageMacroTextLength> controlPageMacroText[NumControlPageMacroButtons];
 
 static PopupWindow *setTempPopup, *setRPMPopup, *movePopup, *extrudePopup, *fileListPopup, *macrosPopup, *fileDetailPopup, *baudPopup,
-		*volumePopup, *infoTimeoutPopup, *screensaverTimeoutPopup, *areYouSurePopup, *keyboardPopup, *languagePopup, *coloursPopup, *screensaverPopup;
+		*volumePopup, *infoTimeoutPopup, *screensaverTimeoutPopup, *babystepAmountPopup, *feedrateAmountPopup, *areYouSurePopup, *keyboardPopup, *languagePopup, *coloursPopup, *screensaverPopup;
 #ifdef SUPPORT_ENCODER
 static PopupWindow *setTempPopupEncoder, *macrosPopupP;
 #endif
@@ -83,6 +84,7 @@ static FloatField *currentTemps[MaxHeaters];
 static FloatField *currentTempPJog;
 static FloatField *currentTempsPJob[MaxPendantTools];
 static FloatField *fpHeightField, *fpLayerHeightField, *babystepOffsetField;
+static TextButtonWithLabel *babystepMinusButton, *babystepPlusButton;
 static IntegerField *fpSizeField, *fpFilamentField, *filePopupTitleField;
 static ProgressBar *printProgressBar, *printProgressBarP;
 static SingleButton *tabControl, *tabPrint, *tabMsg, *tabSetup, *tabPendant, *tabJog, *tabOffset, *tabJob;
@@ -101,14 +103,15 @@ static IntegerButton *activeTempPJog, *standbyTempPJog;
 static IntegerButton *activeTempsPJob[MaxPendantTools], *standbyTempsPJob[MaxPendantTools];
 static IntegerField *currentToolField;
 static StaticTextField *currentWCSField;
-static IntegerButton *spd, *extrusionFactors[MaxHeaters], *fanSpeed, *baudRateButton, *volumeButton, *infoTimeoutButton, *screensaverTimeoutButton;
+static IntegerButton *spd, *extrusionFactors[MaxHeaters], *fanSpeed, *baudRateButton, *volumeButton, *infoTimeoutButton, *screensaverTimeoutButton, *feedrateAmountButton;
 static TextButton *languageButton, *coloursButton, *dimmingTypeButton;
+static TextButtonWithLabel *babystepAmountButton;
 static SingleButton *moveButton, *extrudeButton, *macroButton;
 static PopupWindow *babystepPopup;
 static AlertPopup *alertPopup;
 static AlertPopupP *alertPopupP;
 static CharButtonRow *keyboardRows[4];
-static const char* array const * array currentKeyboard;
+static const char* _ecv_array const * _ecv_array currentKeyboard;
 
 static ButtonBase * null currentTab = nullptr, *lastRegularTab = nullptr, *lastPendantTab = nullptr;
 
@@ -141,7 +144,7 @@ static uint8_t numVisibleAxes = 0;						// initialise to 0 so we refresh the mac
 static uint8_t numDisplayedAxes = 0;
 static bool isDelta = false;
 
-const char* array null currentFile = nullptr;			// file whose info is displayed in the file info popup
+const char* _ecv_array null currentFile = nullptr;			// file whose info is displayed in the file info popup
 const StringTable * strings = &LanguageTables[0];
 static bool keyboardIsDisplayed = false;
 static bool keyboardShifted = false;
@@ -269,13 +272,13 @@ void AlertPopup::Set(const char *title, const char *text, int32_t mode, uint32_t
 	alertTitle.copy(title);
 
 	// Split the alert text into 3 lines
-	size_t splitPoint = MessageLog::FindSplitPoint(text, alertText1.capacity(), (PixelNumber)(GetWidth() - 2 * popupSideMargin));
+	size_t splitPoint = MessageLog::FindSplitPoint(text, alertText1.Capacity(), (PixelNumber)(GetWidth() - 2 * popupSideMargin));
 	alertText1.copy(text);
-	alertText1.truncate(splitPoint);
+	alertText1.Truncate(splitPoint);
 	text += splitPoint;
-	splitPoint = MessageLog::FindSplitPoint(text, alertText2.capacity(), GetWidth() - 2 * popupSideMargin);
+	splitPoint = MessageLog::FindSplitPoint(text, alertText2.Capacity(), GetWidth() - 2 * popupSideMargin);
 	alertText2.copy(text);
-	alertText2.truncate(splitPoint);
+	alertText2.Truncate(splitPoint);
 	text += splitPoint;
 	alertText3.copy(text);
 
@@ -335,21 +338,21 @@ void AlertPopupP::Set(const char *title, const char *text, int32_t mode, uint32_
 	alertTitle.copy(title);
 
 	// Split the alert text into 3 lines
-	size_t splitPoint = MessageLog::FindSplitPoint(text, alertText1.capacity(), (PixelNumber)(GetWidth() - 2 * popupSideMargin));
+	size_t splitPoint = MessageLog::FindSplitPoint(text, alertText1.Capacity(), (PixelNumber)(GetWidth() - 2 * popupSideMargin));
 	alertText1.copy(text);
-	alertText1.truncate(splitPoint);
+	alertText1.Truncate(splitPoint);
 	text += splitPoint;
-	splitPoint = MessageLog::FindSplitPoint(text, alertText2.capacity(), GetWidth() - 2 * popupSideMargin);
+	splitPoint = MessageLog::FindSplitPoint(text, alertText2.Capacity(), GetWidth() - 2 * popupSideMargin);
 	alertText2.copy(text);
-	alertText2.truncate(splitPoint);
+	alertText2.Truncate(splitPoint);
 	text += splitPoint;
-	splitPoint = MessageLog::FindSplitPoint(text, alertText3.capacity(), GetWidth() - 2 * popupSideMargin);
+	splitPoint = MessageLog::FindSplitPoint(text, alertText3.Capacity(), GetWidth() - 2 * popupSideMargin);
 	alertText3.copy(text);
-	alertText3.truncate(splitPoint);
+	alertText3.Truncate(splitPoint);
 	text += splitPoint;
-	splitPoint = MessageLog::FindSplitPoint(text, alertText4.capacity(), GetWidth() - 2 * popupSideMargin);
+	splitPoint = MessageLog::FindSplitPoint(text, alertText4.Capacity(), GetWidth() - 2 * popupSideMargin);
 	alertText4.copy(text);
-	alertText4.truncate(splitPoint);
+	alertText4.Truncate(splitPoint);
 	text += splitPoint;
 	alertText5.copy(text);
 
@@ -376,7 +379,7 @@ inline PixelNumber CalcXPos(unsigned int col, PixelNumber width, int offset = 0)
 }
 
 // Add a text button with a string parameter
-TextButton *AddTextButton(PixelNumber row, unsigned int col, unsigned int numCols, const char* array text, Event evt, const char* param, PixelNumber displayWidth = DisplayX)
+TextButton *AddTextButton(PixelNumber row, unsigned int col, unsigned int numCols, const char* _ecv_array text, Event evt, const char* param, PixelNumber displayWidth = DisplayX)
 {
 	PixelNumber width = CalcWidth(numCols, displayWidth);
 	PixelNumber xpos = CalcXPos(col, width);
@@ -386,7 +389,7 @@ TextButton *AddTextButton(PixelNumber row, unsigned int col, unsigned int numCol
 }
 
 // Add a text button with an int parameter
-TextButton *AddTextButton(PixelNumber row, unsigned int col, unsigned int numCols, const char* array text, Event evt, int param, PixelNumber displayWidth = DisplayX)
+TextButton *AddTextButton(PixelNumber row, unsigned int col, unsigned int numCols, const char* _ecv_array text, Event evt, int param, PixelNumber displayWidth = DisplayX)
 {
 	PixelNumber width = CalcWidth(numCols, displayWidth);
 	PixelNumber xpos = CalcXPos(col, width);
@@ -396,7 +399,7 @@ TextButton *AddTextButton(PixelNumber row, unsigned int col, unsigned int numCol
 }
 
 // Add an integer button
-IntegerButton *AddIntegerButton(PixelNumber row, unsigned int col, unsigned int numCols, const char * array null label, const char * array null units, Event evt, PixelNumber displayWidth = DisplayX)
+IntegerButton *AddIntegerButton(PixelNumber row, unsigned int col, unsigned int numCols, const char * _ecv_array null label, const char * _ecv_array null units, Event evt, PixelNumber displayWidth = DisplayX)
 {
 	PixelNumber width = CalcWidth(numCols, displayWidth);
 	PixelNumber xpos = CalcXPos(col, width);
@@ -466,8 +469,8 @@ ButtonPress CreateStringButtonRow(
 		PixelNumber totalWidth,
 		PixelNumber spacing,
 		unsigned int numButtons,
-		const char* array const text[],
-		const char* array const params[],
+		const char* _ecv_array const text[],
+		const char* _ecv_array const params[],
 		Event evt,
 		int selected = -1,
 		bool textButtonForAxis = false,
@@ -545,8 +548,8 @@ ButtonPress CreateStringButtonRowVertical(
 		PixelNumber spacing,
 		PixelNumber buttonWidth,
 		unsigned int numButtons,
-		const char* array const text[],
-		const char* array const params[],
+		const char* _ecv_array const text[],
+		const char* _ecv_array const params[],
 		Event evt,
 		int selected = -1,
 		bool textButtonForAxis = false,
@@ -617,7 +620,7 @@ ButtonPress CreateFloatButtonRowVertical(
 // Create a row of icon buttons.
 // Set the colours before calling this
 void CreateIconButtonRow(Window * pf, PixelNumber top, PixelNumber left, PixelNumber totalWidth, PixelNumber spacing, unsigned int numButtons,
-									const Icon icons[], const char* array const params[], Event evt)
+									const Icon icons[], const char* _ecv_array const params[], Event evt)
 {
 	const PixelNumber step = (totalWidth + spacing)/numButtons;
 	for (unsigned int i = 0; i < numButtons; ++i)
@@ -669,7 +672,7 @@ int IsVisibleAxisPendant(const char * axis)
 
 // Nasty hack to work around bug in RepRapFirmware 1.09k and earlier
 // The M23 and M30 commands don't work if we send the full path, because "0:/gcodes/" gets prepended regardless.
-const char * array StripPrefix(const char * array dir)
+const char * _ecv_array StripPrefix(const char * _ecv_array dir)
 {
 	if ((GetFirmwareFeatures() && noGcodesFolder) == 0)			// if running RepRapFirmware
 	{
@@ -767,8 +770,8 @@ void CreateIntegerAdjustWithEncoderPopup(const ColourScheme& colours)
 // Create the movement popup window
 void CreateMovePopup(const ColourScheme& colours)
 {
-	static const char * array const xyJogValues[] = { "-100", "-10", "-1", "-0.1", "0.1",  "1", "10", "100" };
-	static const char * array const zJogValues[] = { "-50", "-5", "-0.5", "-0.05", "0.05",  "0.5", "5", "50" };
+	static const char * _ecv_array const xyJogValues[] = { "-100", "-10", "-1", "-0.1", "0.1",  "1", "10", "100" };
+	static const char * _ecv_array const zJogValues[] = { "-50", "-5", "-0.5", "-0.05", "0.05",  "0.5", "5", "50" };
 
 	movePopup = new StandardPopupWindow(movePopupHeight, movePopupWidth, colours.popupBackColour, colours.popupBorderColour, colours.popupTextColour, colours.buttonImageBackColour, strings->moveHead);
 	PixelNumber ypos = popupTopMargin + buttonHeight + moveButtonRowSpacing;
@@ -780,7 +783,7 @@ void CreateMovePopup(const ColourScheme& colours)
 	for (size_t i = 0; i < MaxDisplayableAxes; ++i)
 	{
 		DisplayField::SetDefaultColours(colours.popupButtonTextColour, colours.popupButtonBackColour);
-		const char * array const * array values = (axisNames[i][0] == 'Z') ? zJogValues : xyJogValues;
+		const char * _ecv_array const * _ecv_array values = (axisNames[i][0] == 'Z') ? zJogValues : xyJogValues;
 		CreateStringButtonRow(movePopup, ypos, xpos, movePopupWidth - xpos - popupSideMargin, fieldSpacing, 8, values, values, evMoveAxis, -1, true);
 
 		// We create the label after the button row, so that the buttons follow it in the field order, which makes it easier to hide them
@@ -805,9 +808,9 @@ void CreateMovePopup(const ColourScheme& colours)
 // Create the extrusion controls popup
 void CreateExtrudePopup(const ColourScheme& colours)
 {
-	static const char * array extrudeAmountValues[] = { "100", "50", "20", "10", "5",  "1" };
-	static const char * array extrudeSpeedValues[] = { "50", "20", "10", "5", "2" };
-	static const char * array extrudeSpeedParams[] = { "3000", "1200", "600", "300", "120" };		// must be extrudeSpeedValues * 60
+	static const char * _ecv_array extrudeAmountValues[] = { "100", "50", "20", "10", "5",  "1" };
+	static const char * _ecv_array extrudeSpeedValues[] = { "50", "20", "10", "5", "2" };
+	static const char * _ecv_array extrudeSpeedParams[] = { "3000", "1200", "600", "300", "120" };		// must be extrudeSpeedValues * 60
 
 	extrudePopup = new StandardPopupWindow(extrudePopupHeight, extrudePopupWidth, colours.popupBackColour, colours.popupBorderColour, colours.popupTextColour, colours.buttonImageBackColour, strings->extrusionAmount);
 	PixelNumber ypos = popupTopMargin + buttonHeight + extrudeButtonRowSpacing;
@@ -827,9 +830,9 @@ void CreateExtrudePopup(const ColourScheme& colours)
 // Create the extrusion controls popup
 void CreateExtrudePopupP(const ColourScheme& colours)
 {
-	static const char * array extrudeAmountValues[] = { "100", "50", "20", "10", "5",  "1" };
-	static const char * array extrudeSpeedValues[] = { "50", "20", "10", "5", "2", "1" };
-	static const char * array extrudeSpeedParams[] = { "3000", "1200", "600", "300", "120", "60" };		// must be extrudeSpeedValues * 60
+	static const char * _ecv_array extrudeAmountValues[] = { "100", "50", "20", "10", "5",  "1" };
+	static const char * _ecv_array extrudeSpeedValues[] = { "50", "20", "10", "5", "2", "1" };
+	static const char * _ecv_array extrudeSpeedParams[] = { "3000", "1200", "600", "300", "120", "60" };		// must be extrudeSpeedValues * 60
 
 	extrudePopupP = new StandardPopupWindow(extrudePopupHeightP, extrudePopupWidthP, colours.popupBackColour, colours.popupBorderColour, colours.popupTextColour, colours.buttonImageBackColour, strings->extrusion);
 	const PixelNumber colWidth = CalcWidth(3, extrudePopupWidthP - 2 * popupSideMargin);
@@ -875,7 +878,7 @@ void CreateExtrudePopupP(const ColourScheme& colours)
 
 void CreateWCSOffsetsPopup(const ColourScheme& colours)
 {
-	static const char * array wcsParams[] = { "1", "2", "3", "4", "5", "6", "7", "8", "9" };
+	static const char * _ecv_array wcsParams[] = { "1", "2", "3", "4", "5", "6", "7", "8", "9" };
 
 	wcsOffsetsPopup = new StandardPopupWindow(fullPopupHeightP, fullPopupWidthP, colours.popupBackColour, colours.popupBorderColour, colours.popupTextColour, colours.buttonImageBackColour, strings->axesOffsets);
 	PixelNumber ypos = popupTopMargin + buttonHeight + 20;
@@ -907,13 +910,13 @@ void CreateWCSOffsetsPopup(const ColourScheme& colours)
 	}
 	ypos += buttonHeight * 1.5 + fieldSpacing;
 
-	static const float array wcsAxisMovementAmounts[] { 0.001, 0.01, 0.1, 1.0, 10.0 };
+	static const float _ecv_array wcsAxisMovementAmounts[] { 0.001, 0.01, 0.1, 1.0, 10.0 };
 	currentWCSAxisMovementPress = CreateFloatButtonRow(wcsOffsetsPopup, ypos, popupSideMargin, fullPopupWidthP - 2 * popupSideMargin, fieldSpacing, ARRAY_SIZE(wcsAxisMovementAmounts), nullptr, 3, wcsAxisMovementAmounts, evSelectAxisForWCSFineControl, 1);
 }
 
 
 // Create a popup used to list files pr macros
-PopupWindow *CreateFileListPopup(FileListButtons& controlButtons, TextButton ** array fileButtons, unsigned int numRows, unsigned int numCols, const ColourScheme& colours, bool filesNotMacros,
+PopupWindow *CreateFileListPopup(FileListButtons& controlButtons, TextButton ** _ecv_array fileButtons, unsigned int numRows, unsigned int numCols, const ColourScheme& colours, bool filesNotMacros,
 		PixelNumber popupHeight = fileListPopupHeight, PixelNumber popupWidth = fileListPopupWidth)
 pre(fileButtons.lim == numRows * numCols)
 {
@@ -1050,7 +1053,6 @@ void CreateScreensaverPopup()
 	LandscapeDisplay(false);
 }
 
-
 // Create the baud rate adjustment popup
 void CreateBaudRatePopup(const ColourScheme& colours)
 {
@@ -1083,12 +1085,27 @@ void CreateScreensaverTimeoutPopup(const ColourScheme& colours)
 	screensaverTimeoutPopup = CreateIntPopupBar(colours, fullPopupWidth, ARRAY_SIZE(screensaverTimeoutPopupText), screensaverTimeoutPopupText, values, evAdjustScreensaverTimeout, evAdjustScreensaverTimeout);
 }
 
+// Create the babystep amount adjustment popup
+void CreateBabystepAmountPopup(const ColourScheme& colours)
+{
+	static const int values[] = { 0, 1, 2, 3 };
+	babystepAmountPopup = CreateIntPopupBar(colours, fullPopupWidth, ARRAY_SIZE(babystepAmounts), babystepAmounts, values, evAdjustBabystepAmount, evAdjustBabystepAmount);
+}
+
+// Create the feedrate amount adjustment popup
+void CreateFeedrateAmountPopup(const ColourScheme& colours)
+{
+	static const char* const feedrateText[] = {"600", "1200", "2400", "6000", "12000"};
+	static const int values[] = { 600, 1200, 2400, 6000, 12000 };
+	feedrateAmountPopup = CreateIntPopupBar(colours, fullPopupWidth, ARRAY_SIZE(feedrateText), feedrateText, values, evAdjustFeedrate, evAdjustFeedrate);
+}
+
 // Create the colour scheme change popup
 void CreateColoursPopup(const ColourScheme& colours)
 {
 	if (NumColourSchemes >= 2)
 	{
-		// Put all the colour scheme names in a single array for the call to CreateIntPopupBar
+		// Put all the colour scheme names in a single _ecv_array for the call to CreateIntPopupBar
 		const char* coloursPopupText[NumColourSchemes];
 		for (size_t i = 0; i < NumColourSchemes; ++i)
 		{
@@ -1117,10 +1134,10 @@ void CreateLanguagePopup(const ColourScheme& colours)
 // Create the pop-up keyboard
 void CreateKeyboardPopup(uint32_t language, ColourScheme colours)
 {
-	static const char* array const keysEN[8] = { "1234567890-+", "QWERTYUIOP[]", "ASDFGHJKL:@", "ZXCVBNM,./", "!\"#$%^&*()_=", "qwertyuiop{}", "asdfghjkl;'", "zxcvbnm<>?" };
-	static const char* array const keysDE[8] = { "1234567890-+", "QWERTZUIOP[]", "ASDFGHJKL:@", "YXCVBNM,./", "!\"#$%^&*()_=", "qwertzuiop{}", "asdfghjkl;'", "yxcvbnm<>?" };
-	static const char* array const keysFR[8] = { "1234567890-+", "AZERTWUIOP[]", "QSDFGHJKLM@", "YXCVBN.,:/", "!\"#$%^&*()_=", "azertwuiop{}", "qsdfghjklm'", "yxcvbn<>;?" };
-	static const char* array const * const keyboards[] = { keysEN, keysDE, keysFR, keysEN, keysEN };		// Spain and Czech keyboard layout is same as English
+	static const char* _ecv_array const keysEN[8] = { "1234567890-+", "QWERTYUIOP[]", "ASDFGHJKL:@", "ZXCVBNM,./", "!\"#$%^&*()_=", "qwertyuiop{}", "asdfghjkl;'", "zxcvbnm<>?" };
+	static const char* _ecv_array const keysDE[8] = { "1234567890-+", "QWERTZUIOP[]", "ASDFGHJKL:@", "YXCVBNM,./", "!\"#$%^&*()_=", "qwertzuiop{}", "asdfghjkl;'", "yxcvbnm<>?" };
+	static const char* _ecv_array const keysFR[8] = { "1234567890-+", "AZERTWUIOP[]", "QSDFGHJKLM@", "YXCVBN.,:/", "!\"#$%^&*()_=", "azertwuiop{}", "qsdfghjklm'", "yxcvbn<>;?" };
+	static const char* _ecv_array const * const keyboards[] = { keysEN, keysDE, keysFR, keysEN, keysEN };		// Spain and Czech keyboard layout is same as English
 
 	static_assert(ARRAY_SIZE(keyboards) >= NumLanguages, "Wrong number of keyboard entries");
 
@@ -1181,8 +1198,6 @@ void CreateKeyboardPopup(uint32_t language, ColourScheme colours)
 // Create the babystep popup
 void CreateBabystepPopup(const ColourScheme& colours)
 {
-	static const char * array const babystepStrings[2] = { LESS_ARROW " 0.02", MORE_ARROW " 0.02" };
-	static const char * array const babystepAmounts[2] = { "-0.02", "+0.02" };
 	babystepPopup = new StandardPopupWindow(babystepPopupHeight, babystepPopupWidth, colours.popupBackColour, colours.popupBorderColour, colours.popupTextColour, colours.buttonImageBackColour,
 			strings->babyStepping);
 	PixelNumber ypos = popupTopMargin + babystepRowSpacing;
@@ -1190,7 +1205,9 @@ void CreateBabystepPopup(const ColourScheme& colours)
 	babystepPopup->AddField(babystepOffsetField = new FloatField(ypos, popupSideMargin, babystepPopupWidth - 2 * popupSideMargin, TextAlignment::Left, 3, strings->currentZoffset, "mm"));
 	ypos += babystepRowSpacing;
 	DisplayField::SetDefaultColours(colours.popupTextColour, colours.buttonImageBackColour);
-	CreateStringButtonRow(babystepPopup, ypos, popupSideMargin, babystepPopupWidth - 2 * popupSideMargin, fieldSpacing, 2, babystepStrings, babystepAmounts, evBabyStepAmount);
+	const PixelNumber width = CalcWidth(2, babystepPopupWidth - 2 * popupSideMargin);
+	babystepPopup->AddField(babystepMinusButton = new TextButtonWithLabel(ypos, CalcXPos(0, width, popupSideMargin), width, babystepAmounts[GetBabystepAmountIndex()], evBabyStepMinus, nullptr, LESS_ARROW " "));
+	babystepPopup->AddField(babystepPlusButton = new TextButtonWithLabel(ypos, CalcXPos(1, width, popupSideMargin), width, babystepAmounts[GetBabystepAmountIndex()], evBabyStepPlus, nullptr, MORE_ARROW " "));
 }
 
 // Create the grid of heater icons and temperatures
@@ -1433,6 +1450,13 @@ void CreateSetupTabFields(uint32_t language, const ColourScheme& colours)
 	AddTextButton(row6, 2, 3, strings->clearSettings, evFactoryReset, nullptr);
 	screensaverTimeoutButton = AddIntegerButton(row7, 0, 3, strings->screensaverAfter, nullptr, evSetScreensaverTimeout);
 	screensaverTimeoutButton->SetValue(GetScreensaverTimeout() / 1000);
+
+	const PixelNumber width = CalcWidth(3);
+	mgr.AddField(babystepAmountButton = new TextButtonWithLabel(row7, CalcXPos(1, width), width, babystepAmounts[GetBabystepAmountIndex()], evSetBabystepAmount, nullptr, strings->babystepAmount));
+
+	feedrateAmountButton = AddIntegerButton(row7, 2, 3, strings->feedrate, nullptr, evSetFeedrate);
+	feedrateAmountButton->SetValue(GetFeedrate());
+
 	mgr.AddField(ipAddressField = new TextField(row9, margin, DisplayX/2 - margin, TextAlignment::Left, "IP: ", ipAddress.c_str()));
 	setupRoot = mgr.GetRoot();
 }
@@ -1856,6 +1880,8 @@ namespace UI
 		CreateVolumePopup(colours);
 		CreateInfoTimeoutPopup(colours);
 		CreateScreensaverTimeoutPopup(colours);
+		CreateBabystepAmountPopup(colours);
+		CreateFeedrateAmountPopup(colours);
 		CreateBaudRatePopup(colours);
 		CreateColoursPopup(colours);
 		CreateAreYouSurePopup(colours);
@@ -2162,7 +2188,7 @@ namespace UI
 			break;
 
 		case PrinterStatus::idle:
-			printingFile.clear();
+			printingFile.Clear();
 			nameField->SetValue(machineName.c_str());		// if we are on the print tab then it may still be set to the file that was being printed
 			__attribute__ ((fallthrough));
 			// no break
@@ -2174,7 +2200,7 @@ namespace UI
 			break;
 
 		case PrinterStatus::connecting:
-			printingFile.clear();
+			printingFile.Clear();
 			// We no longer clear the machine name here
 			mgr.ClearAllPopups();
 			break;
@@ -2511,7 +2537,7 @@ namespace UI
 	// This is called when we have just received the name of the file being printed
 	void PrintingFilenameChanged(const char data[])
 	{
-		if (!printingFile.similar(data))
+		if (!printingFile.Similar(data))
 		{
 			printingFile.copy(data);
 			if ((currentTab == tabPrint || currentTab == tabJob) && PrintInProgress())
@@ -2613,6 +2639,12 @@ namespace UI
 					jobTabAxisPos[slotP]->SetLabel(letter);
 					ShowAxisP(slotP, slotP < MaxDisplayableAxesP, axis->letter);
 					++slotP;
+				}
+				// When we get here it's likely to be the initialisation phase
+				// and we won't have the babystep amount set
+				if (axis->letter[0] == 'Z')
+				{
+					babystepOffsetField->SetValue(axis->babystep);
 				}
 			});
 			// Hide axes possibly shown before
@@ -2803,7 +2835,7 @@ namespace UI
 		return alertMode < 2;
 	}
 
-	void ProcessSimpleAlert(const char* array text)
+	void ProcessSimpleAlert(const char* _ecv_array text)
 	{
 		RestoreBrightness();
 		if (alertMode < 2)												// if the current alert doesn't require acknowledgement
@@ -2826,7 +2858,7 @@ namespace UI
 	}
 
 	// Process a new response. This is treated like a simple alert except that it times out and isn't cleared by a "clear alert" command from the host.
-	void NewResponseReceived(const char* array text)
+	void NewResponseReceived(const char* _ecv_array text)
 	{
 		const bool isErrorMessage = stringStartsWith(text, "Error");
 		if (   alertMode < 2											// if the current alert doesn't require acknowledgement
@@ -2853,7 +2885,7 @@ namespace UI
 	}
 
 	// This is called when the user selects a new file from a list of SD card files
-	void FileSelected(const char * array null fileName)
+	void FileSelected(const char * _ecv_array null fileName)
 	{
 		fpNameField->SetValue(fileName);
 		// Clear out the old field values, they relate to the previous file we looked at until we process the response
@@ -2861,11 +2893,11 @@ namespace UI
 		fpHeightField->SetValue(0.0);					// would be better to make it blank
 		fpLayerHeightField->SetValue(0.0);				// would be better to make it blank
 		fpFilamentField->SetValue(0);					// would be better to make it blank
-		generatedByText.clear();
+		generatedByText.Clear();
 		fpGeneratedByField->SetChanged();
-		lastModifiedText.clear();
+		lastModifiedText.Clear();
 		fpLastModifiedField->SetChanged();
-		printTimeText.clear();
+		printTimeText.Clear();
 		fpPrintTimeField->SetChanged();
 	}
 
@@ -2880,7 +2912,9 @@ namespace UI
 	void UpdateFileLastModifiedText(const char data[])
 	{
 		lastModifiedText.copy(data);
-		lastModifiedText.replace('T', ' ');
+		lastModifiedText.Replace('T', ' ');
+		lastModifiedText.Replace('+', '\0');		// ignore time zone if present
+		lastModifiedText.Replace('.', '\0');		// ignore decimal seconds if present (DCS 2.0.0 sends them)
 		fpLastModifiedField->SetChanged();
 	}
 
@@ -2890,11 +2924,11 @@ namespace UI
 		bool update = false;
 		if (isSimulated)
 		{
-			printTimeText.clear();					// prefer simulated to estimated print time
+			printTimeText.Clear();					// prefer simulated to estimated print time
 			fpPrintTimeField->SetLabel(strings->simulatedPrintTime);
 			update = true;
 		}
-		else if (printTimeText.isEmpty())
+		else if (printTimeText.IsEmpty())
 		{
 			fpPrintTimeField->SetLabel(strings->estimatedPrintTime);
 			update = true;
@@ -3172,23 +3206,13 @@ namespace UI
 					case evAdjustChamberActiveTemp:
 						{
 							const bool isBed = eventOfFieldBeingAdjusted == evAdjustBedActiveTemp;
-							SerialIo::SendString("M14");
-							SerialIo::SendInt(isBed ? 0 : 1);
-							SerialIo::SendString(" P");
-							SerialIo::SendInt((isBed ? bedHeater : chamberHeater).index);
-							SerialIo::SendString(" S");
-							SerialIo::SendInt(val);
-							SerialIo::SendChar('\n');
+							SerialIo::Sendf("M14%d P%d S%d\n", isBed ? 0 : 1, (isBed ? bedHeater : chamberHeater).index, val);
 						}
 						break;
 					case evAdjustToolActiveTemp:
 						{
 							int toolNumber = fieldBeingAdjusted.GetIParam();
-							SerialIo::SendString(((GetFirmwareFeatures() & noG10Temps) == 0) ? "G10 P" : "M104 T");
-							SerialIo::SendInt(toolNumber);
-							SerialIo::SendString(" S");
-							SerialIo::SendInt(val);
-							SerialIo::SendChar('\n');
+							SerialIo::Sendf("%s%d S%d\n", ((GetFirmwareFeatures() & noG10Temps) == 0) ? "G10 P" : "M104 T", toolNumber, val);
 						}
 						break;
 
@@ -3196,24 +3220,14 @@ namespace UI
 					case evAdjustChamberStandbyTemp:
 						{
 							const bool isBed = eventOfFieldBeingAdjusted == evAdjustBedStandbyTemp;
-							SerialIo::SendString("M14");
-							SerialIo::SendInt(isBed ? 0 : 1);
-							SerialIo::SendString(" P");
-							SerialIo::SendInt((isBed ? bedHeater : chamberHeater).index);
-							SerialIo::SendString(" R");
-							SerialIo::SendInt(val);
-							SerialIo::SendChar('\n');
+							SerialIo::Sendf("M14%d P%d R%d\n", isBed ? 0 : 1, (isBed ? bedHeater : chamberHeater).index, val);
 						}
 						break;
 
 					case evAdjustToolStandbyTemp:
 						{
 							int toolNumber = fieldBeingAdjusted.GetIParam();
-							SerialIo::SendString("G10 P");
-							SerialIo::SendInt(toolNumber);
-							SerialIo::SendString(" R");
-							SerialIo::SendInt(val);
-							SerialIo::SendChar('\n');
+							SerialIo::Sendf("G10 P%d R%d\n", toolNumber, val);
 						}
 						break;
 
@@ -3222,19 +3236,11 @@ namespace UI
 							auto spindle = OM::GetSpindle(fieldBeingAdjusted.GetIParam());
 							if (val == 0)
 							{
-								SerialIo::SendString("M5 P");
-								SerialIo::SendInt(spindle->index);
-								SerialIo::SendChar('\n');
+								SerialIo::Sendf("M5 P%d\n", spindle->index);
 							}
 							else
 							{
-								SerialIo::SendChar('M');
-								SerialIo::SendInt(val < 0 ? 4 : 3);
-								SerialIo::SendString(" P");
-								SerialIo::SendInt(spindle->index);
-								SerialIo::SendString(" S");
-								SerialIo::SendInt(abs(val));
-								SerialIo::SendChar('\n');
+								SerialIo::Sendf("M%d P%d S%d\n", val < 0 ? 4 : 3, spindle->index, abs(val));
 							}
 						}
 						break;
@@ -3242,18 +3248,12 @@ namespace UI
 					case evExtrusionFactor:
 						{
 							const int extruder = fieldBeingAdjusted.GetIParam();
-							SerialIo::SendString("M221 D");
-							SerialIo::SendInt(extruder);
-							SerialIo::SendString(" S");
-							SerialIo::SendInt(val);
-							SerialIo::SendChar('\n');
+							SerialIo::Sendf("M221 D%d S%d\n", extruder, val);
 						}
 						break;
 
 					case evAdjustFan:
-						SerialIo::SendString("M106 S");
-						SerialIo::SendInt((256 * val)/100);
-						SerialIo::SendChar('\n');
+						SerialIo::Sendf("M106 S%d\n", (256 * val)/100);
 						break;
 
 					default:
@@ -3261,9 +3261,7 @@ namespace UI
 							const char* null cmd = fieldBeingAdjusted.GetSParam();
 							if (cmd != nullptr)
 							{
-								SerialIo::SendString(cmd);
-								SerialIo::SendInt(val);
-								SerialIo::SendChar('\n');
+								SerialIo::Sendf("%s%d\n", cmd, val);
 							}
 						}
 						break;
@@ -3316,10 +3314,7 @@ namespace UI
 			case evMoveAxisP:
 				{
 					TextButtonForAxis *textButton = static_cast<TextButtonForAxis*>(bp.GetButton());
-					SerialIo::SendString("G91 G1 ");
-					SerialIo::SendChar(textButton->GetAxisLetter());
-					SerialIo::SendString(bp.GetSParam());
-					SerialIo::SendString(" F6000 G90\n");
+					SerialIo::Sendf("G91 G1 %c%s F%d G90\n", textButton->GetAxisLetter(), bp.GetSParam(), GetFeedrate());
 				}
 				break;
 
@@ -3369,7 +3364,10 @@ namespace UI
 					const ButtonPress rate = isLandscape ? currentExtrudeRatePress : currentExtrudeRatePressP;
 					if (amount.IsValid() && rate.IsValid())
 					{
-						SendExtrusion(ev == evRetract, amount.GetSParam(), rate.GetSParam());
+						SerialIo::Sendf("M120 M83 G1 E%s%s F%s M121\n",
+								(ev == evRetract ? "-" : ""),
+								amount.GetSParam(),
+								rate.GetSParam());
 					}
 				}
 				break;
@@ -3403,10 +3401,21 @@ namespace UI
 				mgr.SetPopup(babystepPopup, AutoPlace, AutoPlace);
 				break;
 
-			case evBabyStepAmount:
-				SerialIo::SendString("M290 Z");
-				SerialIo::SendString(bp.GetSParam());
-				SerialIo::SendChar('\n');
+			case evBabyStepMinus:
+			case evBabyStepPlus:
+				{
+					SerialIo::Sendf("M290 Z%s%s\n", (ev == evBabyStepMinus ? "-" : ""), babystepAmounts[GetBabystepAmountIndex()]);
+					float currentBabystepAmount = babystepOffsetField->GetValue();
+					if (ev == evBabyStepMinus)
+					{
+						currentBabystepAmount -= babystepAmountsF[GetBabystepAmountIndex()];
+					}
+					else
+					{
+						currentBabystepAmount += babystepAmountsF[GetBabystepAmountIndex()];
+					}
+					babystepOffsetField->SetValue(currentBabystepAmount);
+				}
 				break;
 
 			case evListFiles:
@@ -3438,11 +3447,7 @@ namespace UI
 					}
 					else
 					{
-						SerialIo::SendString("M140 P");
-						SerialIo::SendInt(bedHeater.index);
-						SerialIo::SendString(" S");
-						SerialIo::SendInt(activeTemps[slot]->GetValue());
-						SerialIo::SendChar('\n');
+						SerialIo::Sendf("M140 P%d S%d\n", bedHeater.index, activeTemps[slot]->GetValue());
 					}
 				}
 				break;
@@ -3454,18 +3459,9 @@ namespace UI
 					{
 						break;
 					}
-					SerialIo::SendString("M141 P");
-					SerialIo::SendInt(chamberHeater.index);
-					SerialIo::SendString(" S");
-					if (heaterStatus[slot] == HeaterStatus::active)			// if chamber is active
-					{
-						SerialIo::SendString("-273.15\n");
-					}
-					else
-					{
-						SerialIo::SendInt(activeTemps[slot]->GetValue());
-					}
-					SerialIo::SendChar('\n');
+					SerialIo::Sendf("M141 P%d S%d\n",
+							chamberHeater.index,
+							(heaterStatus[slot] == HeaterStatus::active ? -274 : activeTemps[slot]->GetValue()));
 				}
 				break;
 
@@ -3481,9 +3477,7 @@ namespace UI
 							}
 							else
 							{
-								SerialIo::SendChar('T');
-								SerialIo::SendInt(head);
-								SerialIo::SendChar('\n');
+								SerialIo::Sendf("T%d\n", head);
 							}
 						}
 					}
@@ -3491,7 +3485,7 @@ namespace UI
 
 			case evFile:
 				{
-					const char * array fileName = bp.GetSParam();
+					const char * _ecv_array fileName = bp.GetSParam();
 					if (fileName != nullptr)
 					{
 						if (fileName[0] == '*')
@@ -3540,7 +3534,7 @@ namespace UI
 						else
 						{
 							SerialIo::SendString("M98 P");
-							const char * array const dir = (ev == evMacroControlPage) ? FileManager::GetMacrosRootDir() : FileManager::GetMacrosDir();
+							const char * _ecv_array const dir = (ev == evMacroControlPage) ? FileManager::GetMacrosRootDir() : FileManager::GetMacrosDir();
 							SerialIo::SendFilename(CondStripDrive(dir), fileName);
 							SerialIo::SendChar('\n');
 						}
@@ -3590,9 +3584,7 @@ namespace UI
 				break;
 
 			case evHomeAxis:
-				SerialIo::SendString("G28 ");
-				SerialIo::SendString(bp.GetSParam());
-				SerialIo::SendString("0\n");
+				SerialIo::Sendf("G28 %s0\n", bp.GetSParam());
 				break;
 
 			case evScrollFiles:
@@ -3654,6 +3646,16 @@ namespace UI
 				mgr.SetPopup(screensaverTimeoutPopup, AutoPlace, popupY);
 				break;
 
+			case evSetBabystepAmount:
+				Adjusting(bp);
+				mgr.SetPopup(babystepAmountPopup, AutoPlace, popupY);
+				break;
+
+			case evSetFeedrate:
+				Adjusting(bp);
+				mgr.SetPopup(feedrateAmountPopup, AutoPlace, popupY);
+				break;
+
 			case evSetColours:
 				if (coloursPopup != nullptr)
 				{
@@ -3695,13 +3697,33 @@ namespace UI
 				TouchBeep();									// give audible feedback of the touch at the new volume level
 				break;
 
+			case evAdjustBabystepAmount:
+				{
+					uint32_t babystepAmountIndex = bp.GetIParam();
+					SetBabystepAmountIndex(babystepAmountIndex);
+					babystepAmountButton->SetText(babystepAmounts[babystepAmountIndex]);
+					babystepMinusButton->SetText(babystepAmounts[babystepAmountIndex]);
+					babystepPlusButton->SetText(babystepAmounts[babystepAmountIndex]);
+				}
+				TouchBeep();									// give audible feedback of the touch at the new volume level
+				break;
+
+			case evAdjustFeedrate:
+				{
+					uint32_t feedrate = bp.GetIParam();
+					SetFeedrate(feedrate);
+					feedrateAmountButton->SetValue(feedrate);
+				}
+				TouchBeep();									// give audible feedback of the touch at the new volume level
+				break;
+
 			case evAdjustColours:
 				{
 					const uint8_t newColours = (uint8_t)bp.GetIParam();
 					if (SetColourScheme(newColours))
 					{
 						SaveSettings();
-						Restart();
+						Reset();
 					}
 				}
 				mgr.ClearPopup();
@@ -3718,7 +3740,7 @@ namespace UI
 					if (SetLanguage(newLanguage))
 					{
 						SaveSettings();
-						Restart();
+						Reset();
 					}
 				}
 				mgr.ClearPopup();
@@ -3763,7 +3785,7 @@ namespace UI
 				break;
 
 			case evKey:
-				if (userCommandBuffers[currentUserCommandBuffer].add((char)bp.GetIParam()))
+				if (userCommandBuffers[currentUserCommandBuffer].cat((char)bp.GetIParam()))
 				{
 					userCommandField->SetChanged();
 				}
@@ -3791,9 +3813,9 @@ namespace UI
 				break;
 
 			case evBackspace:
-				if (!userCommandBuffers[currentUserCommandBuffer].isEmpty())
+				if (!userCommandBuffers[currentUserCommandBuffer].IsEmpty())
 				{
-					userCommandBuffers[currentUserCommandBuffer].erase(userCommandBuffers[currentUserCommandBuffer].size() - 1);
+					userCommandBuffers[currentUserCommandBuffer].Erase(userCommandBuffers[currentUserCommandBuffer].strlen() - 1);
 					userCommandField->SetChanged();
 					ShortenTouchDelay();
 				}
@@ -3803,11 +3825,11 @@ namespace UI
 				currentHistoryBuffer = (currentHistoryBuffer + numUserCommandBuffers - 1) % numUserCommandBuffers;
 				if (currentHistoryBuffer == currentUserCommandBuffer)
 				{
-					userCommandBuffers[currentUserCommandBuffer].clear();
+					userCommandBuffers[currentUserCommandBuffer].Clear();
 				}
 				else
 				{
-					userCommandBuffers[currentUserCommandBuffer].copy(userCommandBuffers[currentHistoryBuffer]);
+					userCommandBuffers[currentUserCommandBuffer].copy(userCommandBuffers[currentHistoryBuffer].c_str());
 				}
 				userCommandField->SetChanged();
 				break;
@@ -3816,17 +3838,17 @@ namespace UI
 				currentHistoryBuffer = (currentHistoryBuffer + 1) % numUserCommandBuffers;
 				if (currentHistoryBuffer == currentUserCommandBuffer)
 				{
-					userCommandBuffers[currentUserCommandBuffer].clear();
+					userCommandBuffers[currentUserCommandBuffer].Clear();
 				}
 				else
 				{
-					userCommandBuffers[currentUserCommandBuffer].copy(userCommandBuffers[currentHistoryBuffer]);
+					userCommandBuffers[currentUserCommandBuffer].copy(userCommandBuffers[currentHistoryBuffer].c_str());
 				}
 				userCommandField->SetChanged();
 				break;
 
 			case evSendKeyboardCommand:
-				if (userCommandBuffers[currentUserCommandBuffer].size() != 0)
+				if (userCommandBuffers[currentUserCommandBuffer].strlen() != 0)
 				{
 					SerialIo::SendString(userCommandBuffers[currentUserCommandBuffer].c_str());
 					SerialIo::SendChar('\n');
@@ -3838,7 +3860,7 @@ namespace UI
 						currentUserCommandBuffer = (currentUserCommandBuffer + 1) % numUserCommandBuffers;
 					}
 					currentHistoryBuffer = currentUserCommandBuffer;
-					userCommandBuffers[currentUserCommandBuffer].clear();
+					userCommandBuffers[currentUserCommandBuffer].Clear();
 					userCommandField->SetLabel(userCommandBuffers[currentUserCommandBuffer].c_str());
 				}
 				break;
@@ -3884,6 +3906,8 @@ namespace UI
 			case evSetVolume:
 			case evSetInfoTimeout:
 			case evSetScreensaverTimeout:
+			case evSetFeedrate:
+			case evSetBabystepAmount:
 			case evSetColours:
 				if (fieldBeingAdjusted.GetEvent() == evAdjustActiveRPM && !isLandscape)
 				{
@@ -3932,6 +3956,8 @@ namespace UI
 			case evSetVolume:
 			case evSetInfoTimeout:
 			case evSetScreensaverTimeout:
+			case evSetFeedrate:
+			case evSetBabystepAmount:
 			case evSetColours:
 			case evSetLanguage:
 			case evCalTouch:
@@ -4011,7 +4037,7 @@ namespace UI
 	}
 
 	// Update the specified button in the file or macro buttons list. If 'text' is nullptr then hide the button, else display it.
-	void UpdateFileButton(bool filesNotMacros, unsigned int buttonIndex, const char * array null text, const char * array null param)
+	void UpdateFileButton(bool filesNotMacros, unsigned int buttonIndex, const char * _ecv_array null text, const char * _ecv_array null param)
 	{
 		if (buttonIndex < ((filesNotMacros) ? NumDisplayedFiles : NumDisplayedMacros))
 		{
@@ -4033,7 +4059,7 @@ namespace UI
 
 	// Update the specified button in the macro short list. If 'fileName' is nullptr then hide the button, else display it.
 	// Return true if this should be called again for the next button.
-	bool UpdateMacroShortList(unsigned int buttonIndex, const char * array null fileName)
+	bool UpdateMacroShortList(unsigned int buttonIndex, const char * _ecv_array null fileName)
 	{
 		if (buttonIndex >= ARRAY_SIZE(controlPageMacroButtons) || controlPageMacroButtons[buttonIndex] == nullptr || numToolColsUsed == 0 || numToolColsUsed >= MaxHeaters - 2)
 		{
@@ -4041,7 +4067,7 @@ namespace UI
 		}
 
 		String<controlPageMacroTextLength>& str = controlPageMacroText[buttonIndex];
-		str.clear();
+		str.Clear();
 		const bool isFile = (fileName != nullptr);
 		if (isFile)
 		{
@@ -4393,6 +4419,8 @@ namespace UI
 		{
 			auto axis = OM::GetOrCreateAxis(index);
 			axis->babystep = f;
+			// In first initialization we will see babystep before letter
+			// so this won;t be true hence it is also set in UpdateGeometry
 			if (axis->letter[0] == 'Z')
 			{
 				babystepOffsetField->SetValue(f);

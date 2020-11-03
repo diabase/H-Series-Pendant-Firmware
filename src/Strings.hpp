@@ -11,9 +11,12 @@
 #define SRC_STRINGS_HPP_
 
 #include "ecv.h"
+#undef array
+#undef result
+#undef value
 #include "UserInterfaceConstants.hpp"
 
-#define CSTRING const char * const array
+#define CSTRING const char * const _ecv_array
 #define Newline			"\n"
 #define DegreeSymbol	"\u00B0"
 
@@ -67,6 +70,8 @@ struct StringTable
 	CSTRING saveAndRestart;
 	CSTRING infoTimeout;
 	CSTRING screensaverAfter;
+	CSTRING babystepAmount;
+	CSTRING feedrate;
 
 	// Pendant root
 	CSTRING backToNormal;
@@ -193,6 +198,8 @@ const StringTable LanguageTables[NumLanguages] =
 		"Save & Restart",
 		"Info timeout ",					// note space at end
 		"Screensaver ",						// note space at end
+		"Babystep ",						// note space at end
+		"Feedrate ",						// note space at end
 
 		// Pendant root
 		"Panel",
@@ -339,6 +346,8 @@ const StringTable LanguageTables[NumLanguages] =
 		"Sichern & Reboot",
 		"Info timeout ",					// note space at end
 		"Screensaver ",						// note space at end
+		"Babystep ",						// note space at end
+		"Feedrate ",						// note space at end
 
 		// Pendant root
 		"Panel",
@@ -484,6 +493,8 @@ const StringTable LanguageTables[NumLanguages] =
 		"Sauvegarde & Redémarrage",
 		"Info timeout ",						// note space at end
 		"Screensaver ",							// note space at end
+		"Babystep ",							// note space at end
+		"Feedrate ",							// note space at end
 
 		// Pendant root
 		"Panel",
@@ -629,6 +640,8 @@ const StringTable LanguageTables[NumLanguages] =
 		"Guardar y Reiniciar",
 		"Info timeout ",					// note space at end
 		"Screensaver ",						// note space at end
+		"Babystep ",						// note space at end
+		"Feedrate ",						// note space at end
 
 		// Pendant root
 		"Panel",
@@ -774,6 +787,8 @@ const StringTable LanguageTables[NumLanguages] =
 		"Uložit a Restart",
 		"Info timeout ",					// note space at end
 		"Screensaver ",						// note space at end
+		"Babystep ",						// note space at end
+		"Feedrate ",						// note space at end
 
 		// Pendant root
 		"Panel",

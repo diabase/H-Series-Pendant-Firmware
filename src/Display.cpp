@@ -3,7 +3,7 @@
  *
  * Created: 04/11/2014 09:42:47
  *  Author: David
- */ 
+ */
 
 #include "Display.hpp"
 #include "ColourSchemes.hpp"
@@ -14,8 +14,6 @@
 #undef array
 #undef result
 #include <algorithm>
-#define array _ecv_array
-#define result _ecv_result
 
 extern UTFT lcd;
 
@@ -37,7 +35,7 @@ DisplayField::DisplayField(PixelNumber py, PixelNumber px, PixelNumber pw)
 {
 }
 
-void DisplayField::SetTextRows(const char * array null t)
+void DisplayField::SetTextRows(const char * _ecv_array null t)
 {
 	unsigned int rows = 1;
 	if (t != nullptr)
@@ -87,7 +85,7 @@ void DisplayField::SetPosition(PixelNumber x, PixelNumber y)
 	defaultIconPalette = pal;
 }
 
-/*static*/ PixelNumber DisplayField::GetTextWidth(const char* array s, PixelNumber maxWidth)
+/*static*/ PixelNumber DisplayField::GetTextWidth(const char* _ecv_array s, PixelNumber maxWidth)
 {
 	lcd.setFont(DisplayField::defaultFont);
 	lcd.setTextPos(0, 9999, maxWidth);
@@ -95,7 +93,7 @@ void DisplayField::SetPosition(PixelNumber x, PixelNumber y)
 	return lcd.getTextX();
 }
 
-/*static*/ PixelNumber DisplayField::GetTextWidth(const char* array s, PixelNumber maxWidth, size_t maxChars)
+/*static*/ PixelNumber DisplayField::GetTextWidth(const char* _ecv_array s, PixelNumber maxWidth, size_t maxChars)
 {
 	lcd.setTextPos(0, 9999, maxWidth);
 	lcd.print(s, maxChars);				// dummy print to get text width
@@ -109,10 +107,10 @@ void DisplayField::Show(bool v)
 		visible = changed = v;
 	}
 }
-	
+
 // Find the best match to a touch event in a list of fields
 ButtonPress DisplayField::FindEvent(PixelNumber x, PixelNumber y, DisplayField * null p)
-{	
+{
 	int bestError = maxXerror + maxYerror;
 	ButtonPress best;
 	while (p != nullptr)
@@ -129,7 +127,7 @@ void DisplayField::SetColours(Colour pf, Colour pb)
 	{
 		fcolour = pf;
 		bcolour = pb;
-		changed = true;	
+		changed = true;
 	}
 }
 
@@ -165,7 +163,7 @@ int ButtonPress::GetIParam() const
 	return button->GetIParam(index);
 }
 
-const char* array ButtonPress::GetSParam() const
+const char* _ecv_array ButtonPress::GetSParam() const
 {
 	return button->GetSParam(index);
 }
@@ -178,7 +176,7 @@ Window::Window(Colour pb)
 {
 }
 
-// Append a field to the list of displayed fields
+// Prepend a field to the linked list of displayed fields
 void Window::AddField(DisplayField *d)
 {
 	d->next = root;
@@ -188,7 +186,7 @@ void Window::AddField(DisplayField *d)
 bool Window::ObscuredByPopup(const DisplayField *p) const
 {
 	return next != nullptr
-			&& (  (   p->GetMaxY() >= next->Ypos() && p->GetMinY() < next->Ypos() + next->GetHeight() 
+			&& (  (   p->GetMaxY() >= next->Ypos() && p->GetMinY() < next->Ypos() + next->GetHeight()
 				   && p->GetMaxX() >= next->Xpos() && p->GetMinX() < next->Xpos() + next->GetWidth()
 				  )
 				|| next->ObscuredByPopup(p)
@@ -212,7 +210,7 @@ ButtonPress Window::FindEvent(PixelNumber x, PixelNumber y)
 ButtonPress Window::FindEventOutsidePopup(PixelNumber x, PixelNumber y)
 {
 	if (next == nullptr) return ButtonPress();
-	
+
 	ButtonPress f = DisplayField::FindEvent(x, y, root);
 	return (f.IsValid() && Visible(f.GetButton())) ? f : ButtonPress();
 }
@@ -259,7 +257,7 @@ void Window::ClearPopup(bool redraw, PopupWindow *whichOne)
 		{
 			pw = pw->next;
 		}
-		
+
 		if (whichOne == nullptr || whichOne == pw->next)
 		{
 			const PixelNumber xmin = pw->next->Xpos(), xmax = xmin + pw->next->GetWidth() - 1, ymin = pw->next->Ypos(), ymax = ymin + pw->next->GetHeight() - 1;
@@ -319,7 +317,7 @@ void Window::Redraw(DisplayField *f)
 			return;
 		}
 	}
-	
+
 	// Else we didn't find the field in our window, so look in nested windows
 	if (next != nullptr)
 	{
@@ -340,7 +338,7 @@ void Window::Show(DisplayField * null f, bool v)
 			{
 				if (ObscuredByPopup(f))
 				{
-					// nothing to do		
+					// nothing to do
 				}
 				else if (v)
 				{
@@ -354,7 +352,7 @@ void Window::Show(DisplayField * null f, bool v)
 				return;
 			}
 		}
-		
+
 		// Else we didn't find it, so maybe it is in a popup field
 		if (next != nullptr)
 		{
@@ -438,7 +436,7 @@ void PopupWindow::Refresh(bool full)
 		lcd.drawRoundRect(xPos, yPos, xPos + width - 1, yPos + height - 1);
 		lcd.drawRoundRect(xPos + 1, yPos + 1, xPos + width - 2, yPos + height - 2);
 	}
-	
+
 	for (DisplayField * null p = root; p != nullptr; p = p->next)
 	{
 		if (p->IsVisible() && (full || !ObscuredByPopup(p)))
@@ -446,7 +444,7 @@ void PopupWindow::Refresh(bool full)
 			p->Refresh(full, xPos, yPos);
 		}
 	}
-	
+
 	if (next != nullptr)
 	{
 		next->Refresh(full);
@@ -644,7 +642,7 @@ ButtonBase::ButtonBase(PixelNumber py, PixelNumber px, PixelNumber pw)
 	: DisplayField(py, px, pw),
 	  borderColour(defaultButtonBorderColour), gradColour(defaultGradColour),
 	  pressedBackColour(defaultPressedBackColour), pressedGradColour(defaultPressedGradColour), evt(nullEvent), pressed(false)
-{	
+{
 }
 
 PixelNumber ButtonBase::textMargin = 1;
@@ -748,14 +746,14 @@ size_t CharButton::PrintText(size_t offset) const
 	return lcd.write((char)GetIParam(0));
 }
 
-TextButton::TextButton(PixelNumber py, PixelNumber px, PixelNumber pw, const char * array null pt, event_t e, int param)
+TextButton::TextButton(PixelNumber py, PixelNumber px, PixelNumber pw, const char * _ecv_array null pt, event_t e, int param)
 	: ButtonWithText(py, px, pw), text(pt)
 {
 	SetTextRows(pt);
 	SetEvent(e, param);
 }
 
-TextButton::TextButton(PixelNumber py, PixelNumber px, PixelNumber pw, const char * array null pt, event_t e, const char * array param)
+TextButton::TextButton(PixelNumber py, PixelNumber px, PixelNumber pw, const char * _ecv_array null pt, event_t e, const char * _ecv_array param)
 	: ButtonWithText(py, px, pw), text(pt)
 {
 	SetEvent(e, param);
@@ -770,13 +768,34 @@ size_t TextButton::PrintText(size_t offset) const
 	return 0;
 }
 
+TextButtonWithLabel::TextButtonWithLabel(PixelNumber py, PixelNumber px, PixelNumber pw, const char * _ecv_array null pt, event_t e, int param, const char* _ecv_array null label)
+	: TextButton(py, px, pw, pt, e, param), label(label)
+{
+}
+
+TextButtonWithLabel::TextButtonWithLabel(PixelNumber py, PixelNumber px, PixelNumber pw, const char * _ecv_array null pt, event_t e, const char * _ecv_array param, const char* _ecv_array null label)
+	: TextButton(py, px, pw, pt, e, param), label(label)
+{
+}
+
+size_t TextButtonWithLabel::PrintText(size_t offset) const
+{
+	size_t w = 0;
+	if (label != nullptr)
+	{
+		w += lcd.print(label);
+	}
+	w += TextButton::PrintText(offset);
+	return w;
+}
+
 IconButton::IconButton(PixelNumber py, PixelNumber px, PixelNumber pw, Icon ic, event_t e, int param)
 	: SingleButton(py, px, pw), icon(ic)
 {
 	SetEvent(e, param);
 }
 
-IconButton::IconButton(PixelNumber py, PixelNumber px, PixelNumber pw, Icon ic, event_t e, const char * array param)
+IconButton::IconButton(PixelNumber py, PixelNumber px, PixelNumber pw, Icon ic, event_t e, const char * _ecv_array param)
 : SingleButton(py, px, pw), icon(ic)
 {
 	SetEvent(e, param);
@@ -800,7 +819,7 @@ IconButtonWithText::IconButtonWithText(PixelNumber py, PixelNumber px, PixelNumb
 {
 }
 
-IconButtonWithText::IconButtonWithText(PixelNumber py, PixelNumber px, PixelNumber pw, Icon ic, event_t e, const char * text, const char * array param)
+IconButtonWithText::IconButtonWithText(PixelNumber py, PixelNumber px, PixelNumber pw, Icon ic, event_t e, const char * text, const char * _ecv_array param)
 	: IconButton(py, px, pw, ic, e, param), font(DisplayField::defaultFont), text(text), val(0), printText(true), drawIcon(true)
 {
 }
@@ -810,7 +829,7 @@ IconButtonWithText::IconButtonWithText(PixelNumber py, PixelNumber px, PixelNumb
 {
 }
 
-IconButtonWithText::IconButtonWithText(PixelNumber py, PixelNumber px, PixelNumber pw, Icon ic, event_t e, int textVal, const char * array param)
+IconButtonWithText::IconButtonWithText(PixelNumber py, PixelNumber px, PixelNumber pw, Icon ic, event_t e, int textVal, const char * _ecv_array param)
 	: IconButton(py, px, pw, ic, e, param), font(DisplayField::defaultFont), text(nullptr), val(textVal), printText(true), drawIcon(true)
 {
 }
@@ -939,7 +958,7 @@ void CharButtonRow::PrintText(unsigned int n) const
 	lcd.write(text[n]);
 }
 
-CharButtonRow::CharButtonRow(PixelNumber py, PixelNumber px, PixelNumber pw, PixelNumber ps, const char * array s, event_t e)
+CharButtonRow::CharButtonRow(PixelNumber py, PixelNumber px, PixelNumber pw, PixelNumber ps, const char * _ecv_array s, event_t e)
 	: ButtonRowWithText(py, px, pw, ps, strlen(s), e), text(s)
 {
 }
@@ -977,7 +996,7 @@ void CharButtonRow::Press(bool p, int index) /*override*/
 	whichPressed = (p) ? index : -1;
 }
 
-void CharButtonRow::ChangeText(const char* array s)
+void CharButtonRow::ChangeText(const char* _ecv_array s)
 {
 	if (strcmp(text, s) == 0)
 	{
@@ -1014,7 +1033,7 @@ void ProgressBar::Refresh(bool full, PixelNumber xOffset, PixelNumber yOffset)
 		else if (pixelsSet < lastNumPixelsSet)
 		{
 			lcd.setColor(bcolour);
-			lcd.fillRect(x + xOffset + pixelsSet + 1, y + yOffset + 1, x + xOffset + lastNumPixelsSet, y + yOffset + height - 2);	
+			lcd.fillRect(x + xOffset + pixelsSet + 1, y + yOffset + 1, x + xOffset + lastNumPixelsSet, y + yOffset + height - 2);
 		}
 		changed = false;
 		lastNumPixelsSet = pixelsSet;

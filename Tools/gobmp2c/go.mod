@@ -1,4 +1,4 @@
-module github.com/wilriker/bmp2c
+module github.com/diabase/H-Series-Pendant-Firmware/Tools/gobmp2c
 
 go 1.14
 

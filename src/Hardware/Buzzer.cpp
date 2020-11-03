@@ -5,9 +5,12 @@
  *  Author: David
  * The piezo sounder is connected to the complementary outputs of PWM channel 0, PWMH0 and PWML0, aka PB0 peripheral A and PB5 peripheral B.
  * The backlight control is included in this module because it also uses PWM. Output PWMH1 (aka PB1 peripheral A) drives the backlight pin.
- */ 
+ */
 
 #include "ecv.h"
+#undef array
+#undef result
+#undef value
 #include "asf.h"
 #include "Buzzer.hpp"
 #include "SysTick.hpp"
@@ -24,7 +27,7 @@ namespace Buzzer
 	static const uint32_t backlightPwmFrequency = 300;		// Working range is about 100Hz to 1KHz. MP3202 dataseet says use 1kHz or below due to soft start. Some frequencies causes flickering on the 4.3" display.
 #endif
 
-	static const uint32_t backlightPeriod = pwmClockFrequency/backlightPwmFrequency; 
+	static const uint32_t backlightPeriod = pwmClockFrequency/backlightPwmFrequency;
 
 	static pwm_channel_t buzzer_pwm_channel_instance =
 	{
@@ -89,7 +92,7 @@ namespace Buzzer
 	}
 
 	static const uint32_t volumeTable[MaxVolume] = { 3, 9, 20, 40, 80 };
-		
+
 	// Generate a beep of the given length and frequency. The volume goes from 0 to MaxVolume.
 	void Beep(uint32_t frequency, uint32_t ms, uint32_t volume)
 	{
@@ -99,7 +102,7 @@ namespace Buzzer
 			{
 				volume = MaxVolume;
 			}
-			
+
 			inBuzzer = true;		// tell the tick interrupt to leave us alone
 			if (beepTicksToGo == 0)
 			{
@@ -137,13 +140,13 @@ namespace Buzzer
 			}
 		}
 	}
-	
+
 	// Return true if the buzzer is (or should be) still sounding
 	bool Noisy()
 	{
 		return beepTicksToGo != 0;
 	}
-	
+
 	// Set the backlight brightness on a scale of 0 to MaxBrightness.
 	// Must call Init before calling this.
 	void SetBacklight(uint32_t brightness)
