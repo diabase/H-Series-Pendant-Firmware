@@ -91,7 +91,7 @@ static SingleButton *tabControl, *tabPrint, *tabMsg, *tabSetup, *tabPendant, *ta
 static ButtonBase *pResumeButton, *pPauseButton, *pResetButton;
 static StaticTextField *jobTextField;
 static IntegerButton *pFeedrateButton, *pExtruderPercentButton, *pSpindleRPMButton;
-static ButtonBase *filesButton, *pauseButton, *resumeButton, *resetButton, *babystepButton;
+static ButtonBase *filesButton, *pauseButton, *resumeButton, *cancelButton, *babystepButton;
 static TextField *timeLeftField, *zProbe;
 static TextField *fpNameField, *fpGeneratedByField, *fpLastModifiedField, *fpPrintTimeField;
 static StaticTextField *moveAxisRows[MaxDisplayableAxes];
@@ -160,7 +160,6 @@ static uint32_t lastScreensaverMoved = 0;
 
 static int8_t currentTool = -2;							// Initialized to a value never returned by RRF to have the logic for "no tool" applied at startup
 static uint8_t currentWorkplaceNumber = 0;
-static OM::BedOrChamber bedHeater, chamberHeater;
 static bool allAxesHomed = false;
 
 #ifdef SUPPORT_ENCODER
@@ -1359,7 +1358,7 @@ void CreatePrintingTabFields(const ColourScheme& colours)
 	mgr.AddField(pauseButton);
 
 	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonTextBackColour);
-	babystepButton = new TextButton(row7, babystepColumn, DisplayX - babystepColumn - fieldSpacing, strings->babystep, evBabyStepPopup);
+	babystepButton = new TextButton(row7, babystepColumn, DisplayX - babystepColumn - margin, strings->babystep, evBabyStepPopup);
 	mgr.AddField(babystepButton);
 
 	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.resumeButtonBackColour);
@@ -1367,8 +1366,8 @@ void CreatePrintingTabFields(const ColourScheme& colours)
 	mgr.AddField(resumeButton);
 
 	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.resetButtonBackColour);
-	resetButton = new TextButton(row7, cancelColumn, DisplayX - cancelColumn - margin, strings->cancel, evReset, "M0");
-	mgr.AddField(resetButton);
+	cancelButton = new TextButton(row7, cancelColumn, DisplayX - cancelColumn - margin, strings->cancel, evReset, "M0");
+	mgr.AddField(cancelButton);
 
 #if DISPLAY_X == 800
 	// On 5" and 7" screens there is room to show the current position on the Print page
@@ -1905,7 +1904,7 @@ namespace UI
 	{
 		mgr.Show(resumeButton, false);
 		mgr.Show(pResumeButton, false);
-		mgr.Show(resetButton, false);
+		mgr.Show(cancelButton, false);
 		mgr.Show(pResetButton, false);
 		mgr.Show(pauseButton, false);
 		mgr.Show(pPauseButton, false);
@@ -1917,7 +1916,7 @@ namespace UI
 	{
 		mgr.Show(resumeButton, false);
 		mgr.Show(pResumeButton, false);
-		mgr.Show(resetButton, false);
+		mgr.Show(cancelButton, false);
 		mgr.Show(pResetButton, false);
 		mgr.Show(filesButton, false);
 		mgr.Show(pauseButton, true);
@@ -1933,7 +1932,7 @@ namespace UI
 		mgr.Show(filesButton, false);
 		mgr.Show(resumeButton, true);
 		mgr.Show(pResumeButton, true);
-		mgr.Show(resetButton, true);
+		mgr.Show(cancelButton, true);
 		mgr.Show(pResetButton, true);
 	}
 
@@ -2022,13 +2021,15 @@ namespace UI
 
 	int GetHeaterSlot(size_t heater)
 	{
-		if ((int)heater == bedHeater.heater)
+		auto bed = OM::GetBedForHeater(heater);
+		if (bed != nullptr)
 		{
-			return bedHeater.slot;
+			return bed->slot;
 		}
-		if ((int)heater == chamberHeater.heater)
+		auto chamber = OM::GetChamberForHeater(heater);
+		if (chamber != nullptr)
 		{
-			return chamberHeater.slot;
+			return chamber->slot;
 		}
 		auto tool = OM::GetToolForHeater(heater);
 		return tool != nullptr ? tool->slot : -1;
@@ -2055,13 +2056,15 @@ namespace UI
 				currentTempsPJob[tool->slotPJob]->SetValue(fval);
 			}
 		}
-		if ((int)heater == bedHeater.heater)
+		auto bed = OM::GetBedForHeater(heater);
+		if (bed != nullptr)
 		{
-			currentTempsPJob[bedHeater.slotPJob]->SetValue(fval);
+			currentTempsPJob[bed->slotPJob]->SetValue(fval);
 		}
-		if ((int)heater == chamberHeater.heater)
+		auto chamber = OM::GetChamberForHeater(heater);
+		if (chamber != nullptr)
 		{
-			currentTempsPJob[chamberHeater.slotPJob]->SetValue(fval);
+			currentTempsPJob[chamber->slotPJob]->SetValue(fval);
 		}
 	}
 
@@ -2084,7 +2087,7 @@ namespace UI
 		if (currentTemps[heaterSlot] != nullptr)
 		{
 			currentTemps[heaterSlot]->SetColours(foregroundColour, backgroundColour);
-			if ((int)heater == bedHeater.heater || (int)heater == chamberHeater.heater)
+			if (OM::GetBedForHeater(heater) != nullptr || OM::GetChamberForHeater(heater) != nullptr)
 			{
 				if (backgroundColour == colours->defaultBackColour)
 				{
@@ -2740,14 +2743,19 @@ namespace UI
 			{
 				UpdateField(fieldsPJob[tool->slotPJob], ival);
 			}
+			return;
 		}
-		else if ((int)index == bedHeater.heater && bedHeater.slotPJob < MaxPendantTools)
+		auto bed = OM::GetBedForHeater(index);
+		if (bed != nullptr && bed->slotPJob < MaxPendantTools)
 		{
-			UpdateField(activeTempsPJob[bedHeater.slotPJob], ival);
+			UpdateField(activeTempsPJob[bed->slotPJob], ival);
+			return;
 		}
-		else if ((int)index == chamberHeater.heater && chamberHeater.slotPJob < MaxPendantTools)
+		auto chamber = OM::GetChamberForHeater(index);
+		if (chamber != nullptr && chamber->slotPJob < MaxPendantTools)
 		{
-			UpdateField(activeTempsPJob[chamberHeater.slotPJob], ival);
+			UpdateField(activeTempsPJob[chamber->slotPJob], ival);
+			return;
 		}
 	}
 
@@ -3000,6 +3008,7 @@ namespace UI
 		TouchBeep();											// needed when we are called from ProcessTouchOutsidePopup
 		Delay(1000);
 		SerialIo::SendString("M999\n");
+		Delay(1000);
 		Reconnect();
 	}
 
@@ -3206,7 +3215,12 @@ namespace UI
 					case evAdjustChamberActiveTemp:
 						{
 							const bool isBed = eventOfFieldBeingAdjusted == evAdjustBedActiveTemp;
-							SerialIo::Sendf("M14%d P%d S%d\n", isBed ? 0 : 1, (isBed ? bedHeater : chamberHeater).index, val);
+							const auto bedOrChamber = isBed ? OM::GetFirstBed() : OM::GetFirstChamber();							if (bedOrChamber == nullptr)
+							{
+								break;
+							}
+							const auto heaterIndex = bedOrChamber->index;
+							SerialIo::Sendf("M14%d P%d S%d\n", isBed ? 0 : 1, heaterIndex, val);
 						}
 						break;
 					case evAdjustToolActiveTemp:
@@ -3220,7 +3234,13 @@ namespace UI
 					case evAdjustChamberStandbyTemp:
 						{
 							const bool isBed = eventOfFieldBeingAdjusted == evAdjustBedStandbyTemp;
-							SerialIo::Sendf("M14%d P%d R%d\n", isBed ? 0 : 1, (isBed ? bedHeater : chamberHeater).index, val);
+							const auto bedOrChamber = isBed ? OM::GetFirstBed() : OM::GetFirstChamber();
+							if (bedOrChamber == nullptr)
+							{
+								break;
+							}
+							const auto heaterIndex = bedOrChamber->index;
+							SerialIo::Sendf("M14%d P%d R%d\n", isBed ? 0 : 1, heaterIndex, val);
 						}
 						break;
 
@@ -3436,7 +3456,12 @@ namespace UI
 
 			case evSelectBed:
 				{
-					const auto slot = bedHeater.slot;
+					const auto bed = OM::GetFirstBed();
+					if (bed == nullptr)
+					{
+						break;
+					}
+					const auto slot = bed->slot;
 					if (slot >= MaxHeaters)
 					{
 						break;
@@ -3447,20 +3472,25 @@ namespace UI
 					}
 					else
 					{
-						SerialIo::Sendf("M140 P%d S%d\n", bedHeater.index, activeTemps[slot]->GetValue());
+						SerialIo::Sendf("M140 P%d S%d\n", bed->index, activeTemps[slot]->GetValue());
 					}
 				}
 				break;
 
 			case evSelectChamber:
 				{
-					const auto slot = chamberHeater.slot;
+					const auto chamber = OM::GetFirstChamber();
+					if (chamber == nullptr)
+					{
+						break;
+					}
+					const auto slot = chamber->slot;
 					if (slot >= MaxHeaters)
 					{
 						break;
 					}
 					SerialIo::Sendf("M141 P%d S%d\n",
-							chamberHeater.index,
+							chamber->index,
 							(heaterStatus[slot] == HeaterStatus::active ? -274 : activeTemps[slot]->GetValue()));
 				}
 				break;
@@ -4126,6 +4156,51 @@ namespace UI
 		}
 	}
 
+	void ResetToolAndHeaterStates() noexcept
+	{
+		for (size_t i = 0; i < numToolColsUsed; ++i)
+		{
+			toolButtons[i]->SetColours(colours->buttonTextColour, colours->buttonImageBackColour);
+			currentTemps[i]->SetColours(colours->infoTextColour, colours->defaultBackColour);
+		}
+	}
+
+	void AddBedOrChamber(OM::BedOrChamber *bedOrChamber, size_t &slot, size_t &slotPJob, const bool isBed = true) {
+		const size_t count = (isBed ? OM::GetBedCount() : OM::GetChamberCount());
+		bedOrChamber->slot = MaxHeaters;
+		if (slot < MaxHeaters && bedOrChamber->heater > -1) {
+			bedOrChamber->slot = slot;
+			mgr.Show(toolButtons[slot], true);
+			mgr.Show(currentTemps[slot], true);
+			mgr.Show(activeTemps[slot], true);
+			mgr.Show(standbyTemps[slot], true);
+			toolButtons[slot]->SetEvent(isBed ? evSelectBed : evSelectChamber, bedOrChamber->index);
+			toolButtons[slot]->SetIcon(isBed ? IconBed : IconChamber);
+			toolButtons[slot]->SetIntVal(bedOrChamber->index);
+			toolButtons[slot]->SetPrintText(count > 1);
+			activeTemps[slot]->SetEvent(isBed ? evAdjustBedActiveTemp : evAdjustChamberActiveTemp, bedOrChamber->heater);
+			standbyTemps[slot]->SetEvent(isBed ? evAdjustBedStandbyTemp : evAdjustChamberStandbyTemp, bedOrChamber->heater);
+			++slot;
+		}
+		bedOrChamber->slotPJog = MaxPendantTools;
+		bedOrChamber->slotPJob = MaxPendantTools;
+		if (slotPJob < MaxPendantTools && bedOrChamber->heater > -1)
+		{
+			bedOrChamber->slotPJob = slotPJob;
+			mgr.Show(toolButtonsPJob[slotPJob], true);
+			mgr.Show(currentTempsPJob[slotPJob], true);
+			mgr.Show(activeTempsPJob[slotPJob], true);
+			mgr.Show(standbyTempsPJob[slotPJob], true);
+			toolButtonsPJob[slotPJob]->SetEvent(isBed ? evSelectBed : evSelectChamber, bedOrChamber->index);
+			toolButtonsPJob[slotPJob]->SetIcon(IconChamber);
+			toolButtonsPJob[slotPJob]->SetIntVal(bedOrChamber->index);	// Remove the line below if we want to show the chamber number
+			toolButtonsPJob[slotPJob]->SetPrintText(count > 1);
+			activeTempsPJob[slotPJob]->SetEvent(isBed ? evAdjustBedActiveTemp : evAdjustChamberActiveTemp, bedOrChamber->heater);
+			standbyTempsPJob[slotPJob]->SetEvent(isBed ? evAdjustBedStandbyTemp : evAdjustChamberStandbyTemp, bedOrChamber->heater);
+			++slotPJob;
+		}
+	}
+
 	void AllToolsSeen()
 	{
 		size_t slot = 0;
@@ -4146,36 +4221,10 @@ namespace UI
 			++slotPJog;
 		}
 
-		bedHeater.slot = MaxHeaters;
-		bedHeater.slotPJog = MaxPendantTools;
-		bedHeater.slotPJob = MaxPendantTools;
-		if (bedHeater.heater > -1)
+		auto firstBed = OM::GetFirstBed();
+		if (firstBed != nullptr)
 		{
-			bedHeater.slot = slot;
-			mgr.Show(toolButtons[slot], true);
-			mgr.Show(currentTemps[slot], true);
-			mgr.Show(activeTemps[slot], true);
-			mgr.Show(standbyTemps[slot], true);
-			toolButtons[slot]->SetEvent(evSelectBed, bedHeater.index);
-			toolButtons[slot]->SetIcon(IconBed);
-			toolButtons[slot]->SetIntVal(bedHeater.index);	// Remove the line below if we want to show the bed number
-			toolButtons[slot]->SetPrintText(false);
-			activeTemps[slot]->SetEvent(evAdjustBedActiveTemp, bedHeater.heater);
-			standbyTemps[slot]->SetEvent(evAdjustBedStandbyTemp, bedHeater.heater);
-			++slot;
-
-			bedHeater.slotPJob = slotPJob;
-			mgr.Show(toolButtonsPJob[slotPJob], true);
-			mgr.Show(currentTempsPJob[slotPJob], true);
-			mgr.Show(activeTempsPJob[slotPJob], true);
-			mgr.Show(standbyTempsPJob[slotPJob], true);
-			toolButtonsPJob[slotPJob]->SetEvent(evSelectChamber, bedHeater.index);
-			toolButtonsPJob[slotPJob]->SetIcon(IconChamber);
-			toolButtonsPJob[slotPJob]->SetIntVal(bedHeater.index);	// Remove the line below if we want to show the bed number
-			toolButtonsPJob[slotPJob]->SetPrintText(false);
-			activeTempsPJob[slotPJob]->SetEvent(evAdjustBedActiveTemp, bedHeater.heater);
-			standbyTempsPJob[slotPJob]->SetEvent(evAdjustBedStandbyTemp, bedHeater.heater);
-			++slotPJob;
+			AddBedOrChamber(firstBed, slot, slotPJob);
 		}
 		OM::IterateTools([&slot, &slotPJog, &slotPJob](OM::Tool* tool)
 		{
@@ -4243,38 +4292,10 @@ namespace UI
 				}
 			}
 		});
-		chamberHeater.slot = MaxHeaters;
-		if (slot < MaxHeaters && chamberHeater.heater > -1)
+		auto firstChamber = OM::GetFirstChamber();
+		if (firstChamber != nullptr)
 		{
-			chamberHeater.slot = slot;
-			mgr.Show(toolButtons[slot], true);
-			mgr.Show(currentTemps[slot], true);
-			mgr.Show(activeTemps[slot], true);
-			mgr.Show(standbyTemps[slot], true);
-			toolButtons[slot]->SetEvent(evSelectChamber, chamberHeater.index);
-			toolButtons[slot]->SetIcon(IconChamber);
-			toolButtons[slot]->SetIntVal(chamberHeater.index);	// Remove the line below if we want to show the chamber number
-			toolButtons[slot]->SetPrintText(false);
-			activeTemps[slot]->SetEvent(evAdjustChamberActiveTemp, chamberHeater.heater);
-			standbyTemps[slot]->SetEvent(evAdjustChamberStandbyTemp, chamberHeater.heater);
-			++slot;
-		}
-		chamberHeater.slotPJog = MaxPendantTools;
-		chamberHeater.slotPJob = MaxPendantTools;
-		if (slotPJob < MaxPendantTools && chamberHeater.heater > -1)
-		{
-			chamberHeater.slotPJob = slotPJob;
-			mgr.Show(toolButtonsPJob[slotPJob], true);
-			mgr.Show(currentTempsPJob[slotPJob], true);
-			mgr.Show(activeTempsPJob[slotPJob], true);
-			mgr.Show(standbyTempsPJob[slotPJob], true);
-			toolButtonsPJob[slotPJob]->SetEvent(evSelectChamber, chamberHeater.index);
-			toolButtonsPJob[slotPJob]->SetIcon(IconChamber);
-			toolButtonsPJob[slotPJob]->SetIntVal(chamberHeater.index);	// Remove the line below if we want to show the chamber number
-			toolButtonsPJob[slotPJob]->SetPrintText(false);
-			activeTempsPJob[slotPJob]->SetEvent(evAdjustChamberActiveTemp, chamberHeater.heater);
-			standbyTempsPJob[slotPJob]->SetEvent(evAdjustChamberStandbyTemp, chamberHeater.heater);
-			++slotPJob;
+			AddBedOrChamber(firstChamber, slot, slotPJob, false);
 		}
 		numToolColsUsed = slot;
 		for (size_t i = slot; i < MaxHeaters; ++i)
@@ -4296,6 +4317,8 @@ namespace UI
 			mgr.Show(activeTempsPJob[i], false);
 			mgr.Show(standbyTempsPJob[i], false);
 		}
+
+		ResetToolAndHeaterStates();
 		AdjustControlPageMacroButtons();
 	}
 
@@ -4475,17 +4498,24 @@ namespace UI
 		}
 	}
 
-	void SetBedOrChamberHeater(int8_t heaterNumber, uint8_t heaterIndex, bool bed)
+	void SetBedOrChamberHeater(const uint8_t heaterIndex, const int8_t heaterNumber, bool bed)
 	{
-		OM::BedOrChamber* h = (bed) ? &bedHeater : &chamberHeater;
-		h->heater = heaterNumber;
-		h->index = heaterIndex;
+		if (bed)
+		{
+			auto bed = OM::GetOrCreateBed(heaterIndex);
+			bed->heater = heaterNumber;
+		}
+		else
+		{
+			auto chamber = OM::GetOrCreateChamber(heaterIndex);
+			chamber->heater = heaterNumber;
+		}
 	}
 
-	void ResetBedAndChamber()
+	void ResetBedsAndChambers()
 	{
-		bedHeater.Reset();
-		chamberHeater.Reset();
+		OM::RemoveBed(0, true);
+		OM::RemoveChamber(0, true);
 	}
 }
 
