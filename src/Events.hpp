@@ -78,6 +78,7 @@ enum Event : uint8_t
 	evSimulateFile,
 	evPausePrint,
 	evResumePrint,
+	evReprint, evResimulate,
 	evBabyStepPopup, evBabyStepMinus, evBabyStepPlus,
 
 	evKey, evShift, evBackspace, evSendKeyboardCommand, evUp, evDown,

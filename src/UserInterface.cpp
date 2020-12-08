@@ -91,7 +91,7 @@ static SingleButton *tabControl, *tabPrint, *tabMsg, *tabSetup, *tabPendant, *ta
 static ButtonBase *pResumeButton, *pPauseButton, *pResetButton;
 static StaticTextField *jobTextField;
 static IntegerButton *pFeedrateButton, *pExtruderPercentButton, *pSpindleRPMButton;
-static ButtonBase *filesButton, *pauseButton, *resumeButton, *cancelButton, *babystepButton;
+static ButtonBase *filesButton, *pauseButton, *resumeButton, *cancelButton, *babystepButton, *reprintButton;
 static TextField *timeLeftField, *zProbe;
 static TextField *fpNameField, *fpGeneratedByField, *fpLastModifiedField, *fpPrintTimeField;
 static StaticTextField *moveAxisRows[MaxDisplayableAxes];
@@ -123,6 +123,7 @@ static ButtonPress currentWCSPress, currentWCSAxisMovementPress;
 
 static String<machineNameLength> machineName;
 static String<printingFileLength> printingFile;
+static String<printingFileLength> lastJobFileName;
 static String<zprobeBufLength> zprobeBuf;
 static String<generatedByTextLength> generatedByText;
 static String<lastModifiedTextLength> lastModifiedText;
@@ -1388,6 +1389,11 @@ void CreatePrintingTabFields(const ColourScheme& colours)
 	const PixelNumber offset = 0;
 #endif
 
+	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonTextBackColour);
+	reprintButton = new TextButton(row8 + offset, speedColumn, pauseColumn - speedColumn - fieldSpacing, strings->reprint, evReprint);
+	reprintButton->Show(false);
+	mgr.AddField(reprintButton);
+
 	DisplayField::SetDefaultColours(colours.progressBarColour,colours. progressBarBackColour);
 	mgr.AddField(printProgressBar = new ProgressBar(row8 + offset + (rowHeight - progressBarHeight)/2, margin, progressBarHeight, DisplayX - 2 * margin));
 	mgr.Show(printProgressBar, false);
@@ -1910,6 +1916,7 @@ namespace UI
 		mgr.Show(pPauseButton, false);
 		mgr.Show(babystepButton, false);
 		mgr.Show(filesButton, true);
+		mgr.Show(reprintButton, lastJobFileName.strlen() > 0);
 	}
 
 	void ShowPauseButton()
@@ -1922,6 +1929,7 @@ namespace UI
 		mgr.Show(pauseButton, true);
 		mgr.Show(pPauseButton, true);
 		mgr.Show(babystepButton, true);
+		mgr.Show(reprintButton, false);
 	}
 
 	void ShowResumeAndCancelButtons()
@@ -1934,6 +1942,7 @@ namespace UI
 		mgr.Show(pResumeButton, true);
 		mgr.Show(cancelButton, true);
 		mgr.Show(pResetButton, true);
+		mgr.Show(reprintButton, false);
 	}
 
 	// Show or hide an axis on the move button grid and on the axis display
@@ -2176,6 +2185,7 @@ namespace UI
 				// Starting a new print, so clear the times
 				timesLeft[0] = timesLeft[1] = timesLeft[2] = 0;
 			}
+			SetLastFileSimulated(newStatus == PrinterStatus::simulating);
 			[[fallthrough]];
 		case PrinterStatus::paused:
 		case PrinterStatus::pausing:
@@ -2551,6 +2561,25 @@ namespace UI
 		}
 	}
 
+	void SetLastJobFileName(const char data[])
+	{
+		if (!lastJobFileName.Similar(data))
+		{
+			lastJobFileName.copy(data);
+			if (!PrintInProgress())
+			{
+				mgr.Show(reprintButton, lastJobFileName.strlen() > 0);
+			}
+		}
+	}
+
+	void SetLastFileSimulated(const bool lastFileSimulated)
+	{
+		TextButton* redoButton = static_cast<TextButton*>(reprintButton);
+		redoButton->SetEvent(lastFileSimulated ? evResimulate : evReprint, 0);
+		redoButton->SetText(lastFileSimulated ? strings->resimulate : strings->reprint);
+	}
+
 	// This is called just before the main polling loop starts. Display the default page.
 	void ShowDefaultPage()
 	{
@@ -2589,6 +2618,10 @@ namespace UI
 		const unsigned int stat = (unsigned int)GetStatus();
 		statusField->SetValue((stat < NumStatusStrings) ? strings->statusValues[stat] : "unknown status");
 		pStatusField->SetValue((stat < NumStatusStrings) ? strings->statusValues[stat] : "unknown status");
+		if (!PrintInProgress())
+		{
+			mgr.Refresh(true);		// Ending a print creates a popup and that will prevent removing some of the elements hidden so force it here
+		}
 	}
 
 	// Set the percentage of print completed
@@ -3592,6 +3625,26 @@ namespace UI
 				}
 				break;
 
+			case evReprint:
+			case evResimulate:
+				if (lastJobFileName.strlen() > 0)
+				{
+					SerialIo::SendString((ev == evResimulate) ? "M37 P" : "M32 ");
+					if (GetFirmwareFeatures() & quoteFilenames)
+					{
+						SerialIo::SendQuoted(lastJobFileName.c_str());
+					}
+					else
+					{
+						SerialIo::SendString(lastJobFileName.c_str());
+					}
+					SerialIo::SendChar('\n');
+					PrintingFilenameChanged(lastJobFileName.c_str());
+					CurrentButtonReleased();
+					PrintStarted();
+				}
+				break;
+
 			case evCancel:
 				eventToConfirm = evNull;
 				currentFile = nullptr;
@@ -3815,7 +3868,7 @@ namespace UI
 				break;
 
 			case evKey:
-				if (userCommandBuffers[currentUserCommandBuffer].cat((char)bp.GetIParam()))
+				if (!userCommandBuffers[currentUserCommandBuffer].cat((char)bp.GetIParam()))
 				{
 					userCommandField->SetChanged();
 				}

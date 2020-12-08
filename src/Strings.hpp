@@ -55,6 +55,8 @@ struct StringTable
 	CSTRING babystep;
 	CSTRING resume;
 	CSTRING cancel;
+	CSTRING reprint;
+	CSTRING resimulate;
 	CSTRING set;
 
 	// Setup page
@@ -183,6 +185,8 @@ const StringTable LanguageTables[NumLanguages] =
 		"Baby step",
 		"Resume",
 		"Cancel",
+		"Print again",
+		"Simulate again",
 		"Set",
 
 		// Setup page
@@ -331,6 +335,8 @@ const StringTable LanguageTables[NumLanguages] =
 		"Einzelschritt",
 		"Fortsetzen",
 		"Abbrechen",
+		"Erneut drucken",
+		"Erneut simulieren",
 		"Set",
 
 		// Setup page
@@ -478,6 +484,8 @@ const StringTable LanguageTables[NumLanguages] =
 		"Baby step",
 		"Reprise",
 		"Annuler",
+		"Print again",
+		"Simulate again",
 		"Set",
 
 		// Setup page
@@ -625,6 +633,8 @@ const StringTable LanguageTables[NumLanguages] =
 		"Micro paso",						// Literal translation of baby step it's very odd in spanish...
 		"Resumir",
 		"Cancelar",
+		"Print again",
+		"Simulate again",
 		"Fijar",							// "Establecer" would be more correct, but it's longer.
 
 		// Setup page
@@ -772,6 +782,8 @@ const StringTable LanguageTables[NumLanguages] =
 		"Baby step",
 		"Pokračovat",
 		"Zrušit",
+		"Print again",
+		"Simulate again",
 		"OK",
 
 		// Setup page
