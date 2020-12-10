@@ -225,7 +225,7 @@ const PixelNumber MacroListPopupWidth = fullPopupWidth;
 const PixelNumber MacroListPopupHeight = ((NumMacroRows + 1) * buttonHeight) + (NumMacroRows * fileButtonRowSpacing) + (2 * popupTopMargin);
 
 const unsigned int NumMacroColumnsP = 1;
-const unsigned int NumMacroRowsP = (fullPopupHeightP - (2 * popupTopMargin) + fileButtonRowSpacing)/(buttonHeight + fileButtonRowSpacing) - 1;
+const unsigned int NumMacroRowsP = (fullPopupHeightP - rowHeightP - (2 * popupTopMargin) + fileButtonRowSpacing)/(buttonHeight + fileButtonRowSpacing) - 1;
 //const unsigned int NumMacroRowsP = NumMacroRows;
 const unsigned int NumDisplayedMacrosP = NumMacroColumnsP * NumMacroRowsP;
 

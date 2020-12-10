@@ -352,12 +352,8 @@ public:
 	// Change the value
 	void SetValue(const char* _ecv_array null pt, bool forceUpdate = false)
 	{
-		if (strcmp(text, pt) == 0)
+		if (!forceUpdate && strcmp(text, pt) == 0)
 		{
-			if (forceUpdate)
-			{
-				changed = true;
-			}
 			return;
 		}
 		text = pt;

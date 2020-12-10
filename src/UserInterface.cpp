@@ -205,8 +205,8 @@ public:
 	void Set(const char *title, const char *text, int32_t mode, uint32_t controls);
 
 private:
-	TextButtonForAxis *zUpCourseButton, *zUpMedButton, *zUpFineButton, *zDownCourseButton, *zDownMedButton, *zDownFineButton;
 	IconButton *okButton, *cancelButton;
+	TextButtonForAxis *zUpCourseButton, *zUpMedButton, *zUpFineButton, *zDownCourseButton, *zDownMedButton, *zDownFineButton;
 	String<145/5> alertText1, alertText2, alertText3, alertText4, alertText5;
 	String<alertTitleLength> alertTitle;
 };
@@ -234,7 +234,7 @@ AlertPopup::AlertPopup(const ColourScheme& colours)
 			colours.alertPopupBackColour, colours.popupBorderColour, colours.alertPopupTextColour, colours.buttonImageBackColour, "", popupTopMargin)		// title is present, but empty for now
 {
 	DisplayField::SetDefaultColours(colours.alertPopupTextColour, colours.alertPopupBackColour);
-	titleField->SetValue(alertTitle.c_str());
+	titleField->SetValue(alertTitle.c_str(), true);
 	AddField(new StaticTextField(popupTopMargin + 2 * rowTextHeight, popupSideMargin, GetWidth() - 2 * popupSideMargin, TextAlignment::Centre, alertText1.c_str()));
 	AddField(new StaticTextField(popupTopMargin + 3 * rowTextHeight, popupSideMargin, GetWidth() - 2 * popupSideMargin, TextAlignment::Centre, alertText2.c_str()));
 	AddField(new StaticTextField(popupTopMargin + 4 * rowTextHeight, popupSideMargin, GetWidth() - 2 * popupSideMargin, TextAlignment::Centre, alertText3.c_str()));
@@ -250,8 +250,8 @@ AlertPopup::AlertPopup(const ColourScheme& colours)
 	constexpr PixelNumber hOffset = popupSideMargin + (alertPopupWidth - 2 * popupSideMargin - totalUnits * unitWidth)/2;
 
 	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonTextBackColour);
-	AddField(zUpCourseButton =   new TextButtonForAxis(popupTopMargin + 6 * rowTextHeight, hOffset,				  buttonWidth, LESS_ARROW "2.0", evMoveAxis, "-2.0"));
-	AddField(zUpMedButton =      new TextButtonForAxis(popupTopMargin + 6 * rowTextHeight, hOffset + buttonStep,     buttonWidth, LESS_ARROW "0.2", evMoveAxis, "-0.2"));
+	AddField(zUpCourseButton =   new TextButtonForAxis(popupTopMargin + 6 * rowTextHeight, hOffset + 0 * buttonStep, buttonWidth, LESS_ARROW "2.0", evMoveAxis, "-2.0"));
+	AddField(zUpMedButton =      new TextButtonForAxis(popupTopMargin + 6 * rowTextHeight, hOffset + 1 * buttonStep, buttonWidth, LESS_ARROW "0.2", evMoveAxis, "-0.2"));
 	AddField(zUpFineButton =     new TextButtonForAxis(popupTopMargin + 6 * rowTextHeight, hOffset + 2 * buttonStep, buttonWidth, LESS_ARROW "0.02", evMoveAxis, "-0.02"));
 	AddField(zDownFineButton =   new TextButtonForAxis(popupTopMargin + 6 * rowTextHeight, hOffset + 3 * buttonStep, buttonWidth, MORE_ARROW "0.02", evMoveAxis, "0.02"));
 	AddField(zDownMedButton =    new TextButtonForAxis(popupTopMargin + 6 * rowTextHeight, hOffset + 4 * buttonStep, buttonWidth, MORE_ARROW "0.2", evMoveAxis, "0.2"));
@@ -298,7 +298,7 @@ AlertPopupP::AlertPopupP(const ColourScheme& colours)
 			colours.alertPopupBackColour, colours.popupBorderColour, colours.alertPopupTextColour, colours.buttonImageBackColour, "", popupTopMargin)		// title is present, but empty for now
 {
 	DisplayField::SetDefaultColours(colours.alertPopupTextColour, colours.alertPopupBackColour);
-	titleField->SetValue(alertTitle.c_str());
+	titleField->SetValue(alertTitle.c_str(), true);
 	AddField(new StaticTextField(popupTopMargin + 2 * rowTextHeight, popupSideMargin/2, GetWidth() - popupSideMargin, TextAlignment::Centre, alertText1.c_str()));
 	AddField(new StaticTextField(popupTopMargin + 3 * rowTextHeight, popupSideMargin/2, GetWidth() - popupSideMargin, TextAlignment::Centre, alertText2.c_str()));
 	AddField(new StaticTextField(popupTopMargin + 4 * rowTextHeight, popupSideMargin/2, GetWidth() - popupSideMargin, TextAlignment::Centre, alertText3.c_str()));
@@ -316,12 +316,14 @@ AlertPopupP::AlertPopupP(const ColourScheme& colours)
 	constexpr PixelNumber hOffset = popupSideMargin/2 + (alertPopupWidthP - popupSideMargin - totalUnits * unitWidth)/2;
 
 	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonTextBackColour);
-	AddField(zUpCourseButton =   new TextButtonForAxis(popupTopMargin + 8 * rowTextHeight, hOffset + 2 * buttonStep, buttonWidth, LESS_ARROW "2.0", evMoveAxisP, "-2.0"));
-	AddField(zUpMedButton =      new TextButtonForAxis(popupTopMargin + 8 * rowTextHeight, hOffset + 1 * buttonStep, buttonWidth, LESS_ARROW "0.2", evMoveAxisP, "-0.2"));
-	AddField(zUpFineButton =     new TextButtonForAxis(popupTopMargin + 8 * rowTextHeight, hOffset + 0 * buttonStep, buttonWidth, LESS_ARROW "0.02", evMoveAxisP, "-0.02"));
-	AddField(zDownFineButton =   new TextButtonForAxis(popupTopMargin + 8 * rowTextHeight + buttonHeight + 2 * margin, hOffset + 0 * buttonStep, buttonWidth, MORE_ARROW "0.02", evMoveAxisP, "0.02"));
-	AddField(zDownMedButton =    new TextButtonForAxis(popupTopMargin + 8 * rowTextHeight + buttonHeight + 2 * margin, hOffset + 1 * buttonStep, buttonWidth, MORE_ARROW "0.2", evMoveAxisP, "0.2"));
-	AddField(zDownCourseButton = new TextButtonForAxis(popupTopMargin + 8 * rowTextHeight + buttonHeight + 2 * margin, hOffset + 2 * buttonStep, buttonWidth, MORE_ARROW "2.0", evMoveAxisP, "2.0"));
+	PixelNumber row = popupTopMargin + 8 * rowTextHeight;
+	AddField(zUpCourseButton =   new TextButtonForAxis(row, hOffset + 2 * buttonStep, buttonWidth, LESS_ARROW "2.0", evMoveAxisP, "-2.0"));
+	AddField(zUpMedButton =      new TextButtonForAxis(row, hOffset + 1 * buttonStep, buttonWidth, LESS_ARROW "0.2", evMoveAxisP, "-0.2"));
+	AddField(zUpFineButton =     new TextButtonForAxis(row, hOffset + 0 * buttonStep, buttonWidth, LESS_ARROW "0.02", evMoveAxisP, "-0.02"));
+	row += buttonHeight + 2 * margin;
+	AddField(zDownFineButton =   new TextButtonForAxis(row, hOffset + 0 * buttonStep, buttonWidth, MORE_ARROW "0.02", evMoveAxisP, "0.02"));
+	AddField(zDownMedButton =    new TextButtonForAxis(row, hOffset + 1 * buttonStep, buttonWidth, MORE_ARROW "0.2", evMoveAxisP, "0.2"));
+	AddField(zDownCourseButton = new TextButtonForAxis(row, hOffset + 2 * buttonStep, buttonWidth, MORE_ARROW "2.0", evMoveAxisP, "2.0"));
 	zUpCourseButton->SetAxisLetter('Z');
 	zUpMedButton->SetAxisLetter('Z');
 	zUpFineButton->SetAxisLetter('Z');
@@ -337,7 +339,7 @@ void AlertPopupP::Set(const char *title, const char *text, int32_t mode, uint32_
 {
 	alertTitle.copy(title);
 
-	// Split the alert text into 3 lines
+	// Split the alert text into 5 lines
 	size_t splitPoint = MessageLog::FindSplitPoint(text, alertText1.Capacity(), (PixelNumber)(GetWidth() - 2 * popupSideMargin));
 	alertText1.copy(text);
 	alertText1.Truncate(splitPoint);
@@ -4083,7 +4085,7 @@ namespace UI
 		}
 		else
 		{
-			mgr.SetPopupP((filesNotMacros) ? fileListPopup : macrosPopupP, AutoPlace, AutoPlace);
+			mgr.SetPopupP((filesNotMacros) ? fileListPopup : macrosPopupP, AutoPlace, row2P);
 		}
 	}
 
