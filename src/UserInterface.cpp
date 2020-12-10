@@ -206,9 +206,9 @@ public:
 
 private:
 	IconButton *okButton, *cancelButton;
-	TextButtonForAxis *zUpCourseButton, *zUpMedButton, *zUpFineButton, *zDownCourseButton, *zDownMedButton, *zDownFineButton;
 	String<145/5> alertText1, alertText2, alertText3, alertText4, alertText5;
 	String<alertTitleLength> alertTitle;
+	TextButtonForAxis *zUpCourseButton, *zUpMedButton, *zUpFineButton, *zDownCourseButton, *zDownMedButton, *zDownFineButton;
 };
 
 // Create a standard popup window with a title and a close button at the top right
@@ -286,6 +286,16 @@ void AlertPopup::Set(const char *title, const char *text, int32_t mode, uint32_t
 	okButton->Show(mode >= 2);
 	cancelButton->Show(mode == 3);
 	const bool showZbuttons = (controls & (1u << 2)) != 0;
+	MessageLog::AppendMessage(100, "aP: uC: %#x, uM: %#x, uF: %#x",
+			reinterpret_cast<uint32_t>(zUpCourseButton)-0x20000000,
+			reinterpret_cast<uint32_t>(zUpMedButton)-0x20000000,
+			reinterpret_cast<uint32_t>(zUpFineButton)-0x20000000
+			);
+	MessageLog::AppendMessage(100, "aP: dC: %#x, dM: %#x, dF: %#x",
+			reinterpret_cast<uint32_t>(zDownCourseButton)-0x20000000,
+			reinterpret_cast<uint32_t>(zDownMedButton)-0x20000000,
+			reinterpret_cast<uint32_t>(zDownFineButton)-0x20000000
+			);
 	zUpCourseButton->Show(showZbuttons);
 	zUpMedButton->Show(showZbuttons);
 	zUpFineButton->Show(showZbuttons);
@@ -362,6 +372,16 @@ void AlertPopupP::Set(const char *title, const char *text, int32_t mode, uint32_
 	okButton->Show(mode >= 2);
 	cancelButton->Show(mode == 3);
 	const bool showZbuttons = (controls & (1u << 2)) != 0;
+	MessageLog::AppendMessage(100, "aPP: uC: %#x, uM: %#x, uF: %#x",
+			reinterpret_cast<uint32_t>(zUpCourseButton)-0x20000000,
+			reinterpret_cast<uint32_t>(zUpMedButton)-0x20000000,
+			reinterpret_cast<uint32_t>(zUpFineButton)-0x20000000
+			);
+	MessageLog::AppendMessage(100, "aPP: dC: %#x, dM: %#x, dF: %#x",
+			reinterpret_cast<uint32_t>(zDownCourseButton)-0x20000000,
+			reinterpret_cast<uint32_t>(zDownMedButton)-0x20000000,
+			reinterpret_cast<uint32_t>(zDownFineButton)-0x20000000
+			);
 	zUpCourseButton->Show(showZbuttons);
 	zUpMedButton->Show(showZbuttons);
 	zUpFineButton->Show(showZbuttons);
