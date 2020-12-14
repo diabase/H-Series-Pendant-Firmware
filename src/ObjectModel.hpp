@@ -20,6 +20,7 @@
 
 #include "ToolStatus.hpp"
 #include "UserInterfaceConstants.hpp"
+#include "General/Vector.hpp"
 
 namespace OM {
 	enum Workplaces
@@ -34,6 +35,13 @@ namespace OM {
 		G59_2,
 		G59_3,
 		MaxTotalWorkplaces
+	};
+
+	enum SlotType
+	{
+		panel,
+		pJog,
+		pJob
 	};
 
 	struct Axis
@@ -64,11 +72,13 @@ namespace OM {
 		// tool number
 		uint8_t index = 0;
 		int8_t heater = -1;				// only look at the first heater as we only display one
+		int16_t activeTemp = 0;
+		int16_t standbyTemp = 0;
 		int8_t extruder = -1;			// only look at the first extruder as we only display one
 		Spindle* spindle = nullptr;		// only look at the first spindle as we only display one
 		float offsets[MaxTotalAxes];
 		ToolStatus status = ToolStatus::off;
-		uint8_t slot = MaxHeaters;
+		uint8_t slot = MaxSlots;
 		uint8_t slotPJog = MaxPendantTools;
 		uint8_t slotPJob = MaxPendantTools;
 		Tool* next = nullptr;
@@ -81,12 +91,12 @@ namespace OM {
 		// Id of heater
 		int8_t heater = -1;
 		// Slot for display on panel
-		uint8_t slot = MaxHeaters;
+		uint8_t slot = MaxSlots;
 		uint8_t slotPJog = MaxPendantTools;
 		uint8_t slotPJob = MaxPendantTools;
 
 		BedOrChamber* next = nullptr;
-		void Reset() { index = 0; heater = -1; slot = MaxHeaters; slotPJog = MaxPendantTools; slotPJob = MaxPendantTools; }
+		void Reset() { index = 0; heater = -1; slot = MaxSlots; slotPJog = MaxPendantTools; slotPJob = MaxPendantTools; }
 	};
 
 	typedef BedOrChamber Bed;
@@ -94,6 +104,8 @@ namespace OM {
 
 	typedef void (*AxisIterator)(Axis*);
 	typedef bool (*AxisIteratorWhile)(Axis*);
+
+	typedef Vector<uint8_t, MaxSlots> HeaterSlots;
 
 	Axis* FindAxis(std::function<bool(Axis*)> filter);
 	Axis* GetAxis(const size_t index);
@@ -128,6 +140,14 @@ namespace OM {
 	Chamber* GetChamberForHeater(const size_t heater);
 	size_t GetChamberCount();
 	void IterateChambers(std::function<void(Chamber*)> func, const size_t startAt = 0);
+
+	void GetHeaterSlots(
+			const size_t heaterIndex,
+			HeaterSlots& heaterSlots,
+			SlotType slotType = SlotType::panel,
+			const bool addTools = true,
+			const bool addBeds = true,
+			const bool addChambers = true);
 
 	size_t RemoveAxis(const size_t index, const bool allFollowing);
 	size_t RemoveSpindle(const size_t index, const bool allFollowing);

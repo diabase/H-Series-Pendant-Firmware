@@ -117,22 +117,6 @@ UTouch touch(23, 24, 22, 21, 20);
 #define FETCH_TOOLS			(1)
 #define FETCH_VOLUMES		(1)
 
-// Use this for an Initializing Progress Bar/Counter/Percentage
-#define TOTAL_REQUESTS (FETCH_BOARDS \
-		+ FETCH_DIRECTORIES \
-		+ FETCH_FANS \
-		+ FETCH_HEAT \
-		+ FETCH_INPUTS \
-		+ FETCH_JOB \
-		+ FETCH_MOVE \
-		+ FETCH_NETWORK \
-		+ FETCH_SCANNER \
-		+ FETCH_SENSORS \
-		+ FETCH_SPINDLES \
-		+ FETCH_STATE \
-		+ FETCH_TOOLS \
-		+ FETCH_VOLUMES)
-
 MainWindow mgr;
 
 static uint32_t lastTouchTime;
@@ -430,10 +414,12 @@ enum ReceivedDataEvent
 	rcvStateUptime,
 
 	// Keys from tools response
+	rcvToolsActive,
 	rcvToolsExtruders,
 	rcvToolsHeaters,
 	rcvToolsOffsets,
 	rcvToolsNumber,
+	rcvToolsStandby,
 	rcvToolsState,
 
 	// Keys for volumes response
@@ -533,10 +519,12 @@ static FieldTableEntry fieldTable[] =
 	{ rcvStateUptime,					"state:upTime" },
 
 	// M409 K"tools" response
+	{ rcvToolsActive, 					"tools^:active^" },
 	{ rcvToolsExtruders,				"tools^:extruders^" },
 	{ rcvToolsHeaters,					"tools^:heaters^" },
 	{ rcvToolsNumber, 					"tools^:number" },
 	{ rcvToolsOffsets, 					"tools^:offsets^" },
+	{ rcvToolsStandby, 					"tools^:standby^" },
 	{ rcvToolsState, 					"tools^:state" },
 
 	// M409 K"volumes" response
@@ -642,7 +630,7 @@ struct Seqs
 		spindles 			=
 		state 				=
 		tools 				=
-		volumes 			= (uint16_t)((1 << 16)-1);
+		volumes 			= (uint16_t)(0xFFFF);
 
 		updateBoards		=
 		updateDirectories	=
@@ -779,9 +767,14 @@ void Delay(uint32_t milliSeconds)
 	while (SystemTick::GetTickCount() - now < milliSeconds) { }
 }
 
-bool PrintInProgress()
+bool IsPrintingStatus(PrinterStatus status)
 {
 	return status == PrinterStatus::printing || status == PrinterStatus::paused || status == PrinterStatus::pausing || status == PrinterStatus::resuming || status == PrinterStatus::simulating;
+}
+
+bool PrintInProgress()
+{
+	return IsPrintingStatus(status);
 }
 
 // Search an ordered table for a matching string
@@ -1182,7 +1175,7 @@ void Reconnect()
 	initialized = false;
 	SetStatus(nullptr);
 	// Send first round of data fetching again
-	SerialIo::SendString("M409 F\"d99f\"\n");
+	SerialIo::Sendf("M409 F\"d99f\"\n");
 	// And set the last poll time to now
 	lastPollTime = SystemTick::GetTickCount();
 }
@@ -1737,7 +1730,7 @@ void ProcessReceivedValue(StringRef id, const char data[], const size_t indices[
 
 	case rcvJobLastFileName:
 		ShowLine;
-		UI::SetLastJobFileName(data);
+		UI::LastJobFileNameAvailable(data != 0);
 		break;
 
 	case rcvJobLastFileSimulated:
@@ -2080,6 +2073,22 @@ void ProcessReceivedValue(StringRef id, const char data[], const size_t indices[
 		break;
 
 	// Tools section
+	case rcvToolsActive:
+	case rcvToolsStandby:
+		ShowLine;
+		{
+			if (indices[1] > 0)
+			{
+				return;
+			}
+			int32_t temp;
+			if (GetInteger(data, temp))
+			{
+				UI::UpdateToolTemp(indices[0], temp, rde == rcvToolsActive);
+			}
+		}
+		break;
+
 	case rcvToolsExtruders:
 		ShowLine;
 		{
@@ -2323,10 +2332,10 @@ void ProcessReceivedValue(StringRef id, const char data[], const size_t indices[
 			switch (controlCommand)
 			{
 			case ControlCommand::eraseAndReset:
-				EraseAndReset(); // Does not return
+				EraseAndReset();					// Does not return
 				break;
 			case ControlCommand::reset:
-				Reset(); // Does not return
+				Reset();							// Does not return
 				break;
 			default:
 				// Invalid command. Just ignore.
@@ -2517,7 +2526,7 @@ int main(void)
 	mgr.Refresh(true);								// draw the screen for the first time
 	UI::UpdatePrintingFields();
 
-	SerialIo::SendString("M409 F\"d99f\"\n");		// Get initial status
+	SerialIo::Sendf("M409 F\"d99f\"\n");		// Get initial status
 	lastPollTime = SystemTick::GetTickCount();
 
 	// Hide all tools and heater related columns initially
@@ -2659,14 +2668,14 @@ int main(void)
 					// Otherwise just send a normal poll command
 					if (!done)
 					{
-						SerialIo::SendString("M409 F\"d99f\"\n");
+						SerialIo::Sendf("M409 F\"d99f\"\n");
 					}
 				}
 				lastPollTime = SystemTick::GetTickCount();
 			}
             else if (now - lastPollTime >= printerPollTimeout)      // last response was most likely incomplete start over
             {
-                SerialIo::SendString("M409 F\"d99f\"\n");
+                SerialIo::Sendf("M409 F\"d99f\"\n");
                 lastPollTime = SystemTick::GetTickCount();
             }
 		}

@@ -35,6 +35,7 @@ enum class DisplayDimmerType : uint8_t
 	NumTypes
 };
 
+extern bool IsPrintingStatus(PrinterStatus status);
 extern bool PrintInProgress();
 extern PrinterStatus GetStatus();
 extern void DelayTouchLong();

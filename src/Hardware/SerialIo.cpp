@@ -120,7 +120,7 @@ namespace SerialIo
 				checksum = 0;
 				// Send a dummy line number
 				SendCharAndChecksum('N');
-				SendInt(lineNumber++);			// numChars is no longer zero, so only recurses once
+				Sendf("%d", lineNumber++);			// numChars is no longer zero, so only recurses once
 				SendCharAndChecksum(' ');
 			}
 			SendCharAndChecksum(c);
@@ -140,63 +140,15 @@ namespace SerialIo
 		}, fmt, vargs);
 	}
 
-	void SendString(const char * _ecv_array s)
-	{
-		while (*s != 0)
-		{
-			SendChar(*s++);
-		}
-	}
-
-	void SendQuoted(const char * _ecv_array s)
-	{
-		SendChar('"');
-		SendString(s);
-		SendChar('"');
-	}
-
 	void SendFilename(const char * _ecv_array dir, const char * _ecv_array name)
 	{
-		if (GetFirmwareFeatures() & quoteFilenames)
-		{
-			SendChar('"');
-		}
-		if (*dir != 0)
-		{
-			// We have a directory, so send it followed by '/' if necessary
-			char c;
-			while ((c = *dir) != 0)
-			{
-				SendChar(c);
-				++dir;
-			}
-			if (c != '/')
-			{
-				SendChar('/');
-			}
-
-		}
-		SendString(name);
-		if (GetFirmwareFeatures() & quoteFilenames)
-		{
-			SendChar('"');
-		}
-	}
-
-	void SendInt(int i)
-	decrease(i < 0; i)
-	{
-		if (i < 0)
-		{
-			SendChar('-');
-			i = -i;
-		}
-		if (i >= 10)
-		{
-			SendInt(i/10);
-			i %= 10;
-		}
-		SendChar((char)((char)i + '0'));
+		const char* quote = (GetFirmwareFeatures() & quoteFilenames) ? "\"" : "";
+		Sendf("%s%s%s%s%s",
+				quote,
+				dir,
+				((dir[strlen(dir)-1] != '/') ? "/" : ""),
+				name,
+				quote);
 	}
 
 	// SendFloat will convert a float into a rounded fixed 3 decimal representation.

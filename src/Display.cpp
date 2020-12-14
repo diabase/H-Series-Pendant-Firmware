@@ -89,14 +89,14 @@ void DisplayField::SetPosition(PixelNumber x, PixelNumber y)
 {
 	lcd.setFont(DisplayField::defaultFont);
 	lcd.setTextPos(0, 9999, maxWidth);
-	lcd.print(s);						// dummy print to get text width
+	lcd.printf(s);						// dummy print to get text width
 	return lcd.getTextX();
 }
 
 /*static*/ PixelNumber DisplayField::GetTextWidth(const char* _ecv_array s, PixelNumber maxWidth, size_t maxChars)
 {
 	lcd.setTextPos(0, 9999, maxWidth);
-	lcd.print(s, maxChars);				// dummy print to get text width
+	lcd.printf(maxChars, s);				// dummy print to get text width
 	return lcd.getTextX();
 }
 
@@ -418,8 +418,8 @@ void MainWindow::ClearAllPopups()
 	}
 }
 
-PopupWindow::PopupWindow(PixelNumber ph, PixelNumber pw, Colour pb, Colour pBorder)
-	: Window(pb), height(ph), width(pw), borderColour(pBorder)
+PopupWindow::PopupWindow(PixelNumber ph, PixelNumber pw, Colour pb, Colour pBorder, bool roundCorners)
+	: Window(pb), height(ph), width(pw), borderColour(pBorder), roundedCorners(roundCorners)
 {
 }
 
@@ -429,12 +429,27 @@ void PopupWindow::Refresh(bool full)
 	{
 		// Draw a rectangle inside the border
 		lcd.setColor(backgroundColour);
-		lcd.fillRoundRect(xPos + 1, yPos + 2, xPos + width - 2, yPos + height - 3);
+		if (roundedCorners)
+		{
+			lcd.fillRoundRect(xPos + 1, yPos + 2, xPos + width - 2, yPos + height - 3);
+		}
+		else
+		{
+			lcd.fillRect(xPos, yPos, xPos + width, yPos + height);
+		}
 
 		// Draw a double border
 		lcd.setColor(borderColour);
-		lcd.drawRoundRect(xPos, yPos, xPos + width - 1, yPos + height - 1);
-		lcd.drawRoundRect(xPos + 1, yPos + 1, xPos + width - 2, yPos + height - 2);
+		if (roundedCorners)
+		{
+			lcd.drawRoundRect(xPos, yPos, xPos + width - 1, yPos + height - 1);
+			lcd.drawRoundRect(xPos + 1, yPos + 1, xPos + width - 2, yPos + height - 2);
+		}
+		else
+		{
+			lcd.drawRect(xPos, yPos, xPos + width - 1, yPos + height - 1);
+			lcd.drawRect(xPos + 1, yPos + 1, xPos + width - 2, yPos + height - 2);
+		}
 	}
 
 	for (DisplayField * null p = root; p != nullptr; p = p->next)
@@ -596,11 +611,11 @@ void TextField::PrintText() const
 {
 	if (label != nullptr)
 	{
-		lcd.print(label);
+		lcd.printf(label);
 	}
 	if (text != nullptr)
 	{
-		lcd.print(text);
+		lcd.printf(text);
 	}
 }
 
@@ -608,12 +623,12 @@ void FloatField::PrintText() const
 {
 	if (label != nullptr)
 	{
-		lcd.print(label);
+		lcd.printf(label);
 	}
-	lcd.print(val, numDecimals);
+	lcd.printf(format, val);
 	if (units != nullptr)
 	{
-		lcd.print(units);
+		lcd.printf(units);
 	}
 }
 
@@ -621,12 +636,12 @@ void IntegerField::PrintText() const
 {
 	if (label != nullptr)
 	{
-		lcd.print(label);
+		lcd.printf(label);
 	}
-	lcd.print(val);
+	lcd.printf("%d", val);
 	if (units != nullptr)
 	{
-		lcd.print(units);
+		lcd.printf(units);
 	}
 }
 
@@ -634,7 +649,7 @@ void StaticTextField::PrintText() const
 {
 	if (text != nullptr)
 	{
-		lcd.print(text);
+		lcd.printf(text);
 	}
 }
 
@@ -763,7 +778,7 @@ size_t TextButton::PrintText(size_t offset) const
 {
 	if (text != nullptr)
 	{
-		return lcd.print(text + offset);
+		return lcd.printf(text + offset);
 	}
 	return 0;
 }
@@ -783,7 +798,7 @@ size_t TextButtonWithLabel::PrintText(size_t offset) const
 	size_t w = 0;
 	if (label != nullptr)
 	{
-		w += lcd.print(label);
+		w += lcd.printf(label);
 	}
 	w += TextButton::PrintText(offset);
 	return w;
@@ -843,10 +858,10 @@ size_t IconButtonWithText::PrintText() const
 	}
 	if (text != nullptr)
 	{
-		ret += lcd.print(text);
+		ret += lcd.printf(text);
 	}
 	else {
-		ret += lcd.print(val);
+		ret += lcd.printf("%d", val);
 	}
 	return ret;
 }
@@ -890,12 +905,12 @@ size_t IntegerButton::PrintText(size_t offset) const
 	size_t ret = 0;
 	if (label != nullptr)
 	{
-		ret += lcd.print(label);
+		ret += lcd.printf(label);
 	}
-	ret += lcd.print(val);
+	ret += lcd.printf("%d", val);
 	if (units != nullptr)
 	{
-		ret += lcd.print(units);
+		ret += lcd.printf(units);
 	}
 	return ret;
 }
@@ -903,10 +918,10 @@ size_t IntegerButton::PrintText(size_t offset) const
 size_t FloatButton::PrintText(size_t offset) const
 {
 	UNUSED(offset);
-	size_t ret = lcd.print(val, numDecimals);
+	size_t ret = lcd.printf(format, val);
 	if (units != nullptr)
 	{
-		ret += lcd.print(units);
+		ret += lcd.printf(units);
 	}
 	return ret;
 }

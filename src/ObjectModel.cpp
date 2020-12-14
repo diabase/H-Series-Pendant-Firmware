@@ -7,7 +7,7 @@
 
 #include "ObjectModel.hpp"
 
-template<class T>
+template<typename T>
 T* GetOrCreate(T*& start, size_t index, bool create)
 {
 	T* ret = start;
@@ -44,7 +44,7 @@ T* GetOrCreate(T*& start, size_t index, bool create)
 	return ret;
 }
 
-template<class T>
+template<typename T>
 size_t GetElementCount(T*& start)
 {
 	size_t count = 0;
@@ -334,6 +334,80 @@ namespace OM
 	void IterateChambers(std::function<void(Chamber*)> func, const size_t startAt)
 	{
 		Iterate(chambers, func, startAt);
+	}
+
+	void GetHeaterSlots(
+			const size_t heaterIndex,
+			HeaterSlots& heaterSlots,
+			SlotType slotType,
+			const bool addTools,
+			const bool addBeds,
+			const bool addChambers)
+	{
+		if (addBeds)
+		{
+			IterateBeds(
+				[&heaterSlots, heaterIndex, slotType](auto bed) {
+					if (bed->slot < MaxSlots && bed->heater == (int)heaterIndex)
+					{
+						switch(slotType)
+						{
+						case SlotType::panel:
+							heaterSlots.Add(bed->slot);
+							break;
+						case SlotType::pJog:
+							heaterSlots.Add(bed->slotPJog);
+							break;
+						case SlotType::pJob:
+							heaterSlots.Add(bed->slotPJob);
+							break;
+						}
+					}
+				});
+		}
+		if (addChambers)
+		{
+			IterateChambers(
+				[&heaterSlots, heaterIndex, slotType](auto chamber) {
+					if (chamber->slot < MaxSlots && chamber->heater == (int)heaterIndex)
+					{
+						switch(slotType)
+						{
+						case SlotType::panel:
+							heaterSlots.Add(chamber->slot);
+							break;
+						case SlotType::pJog:
+							heaterSlots.Add(chamber->slotPJog);
+							break;
+						case SlotType::pJob:
+							heaterSlots.Add(chamber->slotPJob);
+							break;
+						}
+					}
+				});
+		}
+		if (addTools)
+		{
+			IterateTools(
+				[&heaterSlots, heaterIndex, slotType](auto tool) {
+					if (tool->slot < MaxSlots && tool->heater == (int)heaterIndex)
+					{
+						switch(slotType)
+						{
+						case SlotType::panel:
+							heaterSlots.Add(tool->slot);
+							break;
+						case SlotType::pJog:
+							heaterSlots.Add(tool->slotPJog);
+							break;
+						case SlotType::pJob:
+							heaterSlots.Add(tool->slotPJob);
+							break;
+						}
+					}
+				});
+		}
+
 	}
 
 	size_t RemoveAxis(const size_t index, const bool allFollowing)
