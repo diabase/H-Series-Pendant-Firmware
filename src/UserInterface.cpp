@@ -4227,16 +4227,17 @@ namespace UI
 		bedOrChamber->slot = MaxSlots;
 		if (slot < MaxSlots && bedOrChamber->heater > -1) {
 			bedOrChamber->slot = slot;
-			mgr.Show(toolButtons[slot], true);
-			mgr.Show(currentTemps[slot], true);
-			mgr.Show(activeTemps[slot], true);
-			mgr.Show(standbyTemps[slot], true);
 			toolButtons[slot]->SetEvent(isBed ? evSelectBed : evSelectChamber, bedOrChamber->index);
 			toolButtons[slot]->SetIcon(isBed ? IconBed : IconChamber);
 			toolButtons[slot]->SetIntVal(bedOrChamber->index);
 			toolButtons[slot]->SetPrintText(count > 1);
 			activeTemps[slot]->SetEvent(isBed ? evAdjustBedActiveTemp : evAdjustChamberActiveTemp, bedOrChamber->heater);
 			standbyTemps[slot]->SetEvent(isBed ? evAdjustBedStandbyTemp : evAdjustChamberStandbyTemp, bedOrChamber->heater);
+
+			mgr.Show(toolButtons[slot], true);
+			mgr.Show(currentTemps[slot], true);
+			mgr.Show(activeTemps[slot], true);
+			mgr.Show(standbyTemps[slot], true);
 			++slot;
 		}
 		bedOrChamber->slotPJog = MaxPendantTools;
@@ -4244,16 +4245,17 @@ namespace UI
 		if (slotPJob < MaxPendantTools && bedOrChamber->heater > -1)
 		{
 			bedOrChamber->slotPJob = slotPJob;
-			mgr.Show(toolButtonsPJob[slotPJob], true);
-			mgr.Show(currentTempsPJob[slotPJob], true);
-			mgr.Show(activeTempsPJob[slotPJob], true);
-			mgr.Show(standbyTempsPJob[slotPJob], true);
 			toolButtonsPJob[slotPJob]->SetEvent(isBed ? evSelectBed : evSelectChamber, bedOrChamber->index);
-			toolButtonsPJob[slotPJob]->SetIcon(IconChamber);
+			toolButtonsPJob[slotPJob]->SetIcon(isBed ? IconBed : IconChamber);
 			toolButtonsPJob[slotPJob]->SetIntVal(bedOrChamber->index);	// Remove the line below if we want to show the chamber number
 			toolButtonsPJob[slotPJob]->SetPrintText(count > 1);
 			activeTempsPJob[slotPJob]->SetEvent(isBed ? evAdjustBedActiveTemp : evAdjustChamberActiveTemp, bedOrChamber->heater);
 			standbyTempsPJob[slotPJob]->SetEvent(isBed ? evAdjustBedStandbyTemp : evAdjustChamberStandbyTemp, bedOrChamber->heater);
+
+			mgr.Show(toolButtonsPJob[slotPJob], true);
+			mgr.Show(currentTempsPJob[slotPJob], true);
+			mgr.Show(activeTempsPJob[slotPJob], true);
+			mgr.Show(standbyTempsPJob[slotPJob], true);
 			++slotPJob;
 		}
 	}
@@ -4273,7 +4275,7 @@ namespace UI
 			toolSelectButtonsPJog[slotPJog]->SetIntVal(ProbeToolIndex);
 			toolSelectButtonsPJog[slotPJog]->SetPrintText(true);
 			toolSelectButtonsPJog[slotPJog]->SetText(strings->probe);
-			toolSelectButtonsPJog[slotPJog]->SetDrawIcon(false);
+			toolSelectButtonsPJog[slotPJog]->SetIcon(IconDummy);
 			mgr.Show(toolSelectButtonsPJog[slotPJog], true);
 			++slotPJog;
 		}
@@ -4320,10 +4322,10 @@ namespace UI
 					tool->slotPJog = slotPJog;
 					toolSelectButtonsPJog[slotPJog]->SetEvent(evSelectHead, tool->index);
 					toolSelectButtonsPJog[slotPJog]->SetIntVal(tool->index);
-					toolSelectButtonsPJog[slotPJog]->SetText(nullptr);
 					toolSelectButtonsPJog[slotPJog]->SetPrintText(true); // This enables printing the IntVal
+					toolSelectButtonsPJog[slotPJog]->SetText(nullptr);
 					toolSelectButtonsPJog[slotPJog]->SetIcon(hasSpindle ? IconSpindle : IconNozzle);
-					toolSelectButtonsPJog[slotPJog]->SetDrawIcon(true);
+					toolSelectButtonsPJog[slotPJog]->SetChanged();
 
 					mgr.Show(toolSelectButtonsPJog[slotPJog], true);
 
@@ -4345,7 +4347,7 @@ namespace UI
 					toolButtonsPJob[slotPJob]->SetText(nullptr);
 					toolButtonsPJob[slotPJob]->SetPrintText(true); // This enables printing the IntVal
 					toolButtonsPJob[slotPJob]->SetIcon(hasSpindle ? IconSpindle : IconNozzle);
-					toolButtonsPJob[slotPJob]->SetDrawIcon(true);
+					toolButtonsPJob[slotPJob]->SetChanged();
 
 					mgr.Show(toolButtonsPJob[slotPJob], true);
 					mgr.Show(currentTempsPJob[slotPJob], true);
