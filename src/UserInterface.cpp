@@ -2074,7 +2074,7 @@ namespace UI
 	void UpdateHeaterStatus(const size_t heaterIndex, const HeaterStatus status)
 	{
 
-		Colour backgroundColour = (status == HeaterStatus::standby) ? colours->standbyBackColour
+		const Colour backgroundColour = (status == HeaterStatus::standby) ? colours->standbyBackColour
 					: (status == HeaterStatus::active) ? colours->activeBackColour
 					: (status == HeaterStatus::fault) ? colours->errorBackColour
 					: (status == HeaterStatus::tuning) ? colours->tuningBackColour
@@ -2099,11 +2099,9 @@ namespace UI
 					// FIXME: this information could be added to the GetHeaterSlots() result
 					if (OM::GetBedForHeater(heaterIndex) != nullptr || OM::GetChamberForHeater(heaterIndex) != nullptr)
 					{
-						if (backgroundColour == colours->defaultBackColour)
-						{
-							backgroundColour = colours->buttonImageBackColour;
-						}
-						toolButtons[heaterSlots[i]]->SetColours(foregroundColour, backgroundColour);
+						toolButtons[heaterSlots[i]]->SetColours(
+								foregroundColour,
+								(backgroundColour == colours->defaultBackColour) ? colours->buttonImageBackColour : backgroundColour);
 					}
 				}
 			}
@@ -2785,7 +2783,7 @@ namespace UI
 		}
 		if (tool->slotPJob < MaxPendantTools)
 		{
-			UpdateField((active ? activeTemps : standbyTemps)[tool->slotPJob], temp);
+			UpdateField((active ? activeTempsPJob : standbyTempsPJob)[tool->slotPJob], temp);
 		}
 	}
 
