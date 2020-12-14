@@ -2052,7 +2052,7 @@ namespace UI
 			heaterSlots.Clear();
 		}
 
-		OM::GetHeaterSlots(heaterIndex, heaterSlots, OM::SlotType::pJob);
+		OM::GetHeaterSlotsPJob(heaterIndex, heaterSlots);
 		if (!heaterSlots.IsEmpty())
 		{
 			const size_t count = heaterSlots.Size();
@@ -2065,12 +2065,9 @@ namespace UI
 		}
 
 		auto tool = OM::GetToolForHeater(heaterIndex);
-		if (tool != nullptr)
+		if (tool != nullptr && tool->index == currentTool)
 		{
-			if (tool->index == currentTool)
-			{
-				currentTempPJog->SetValue(fval);
-			}
+			currentTempPJog->SetValue(fval);
 		}
 	}
 
@@ -2113,7 +2110,7 @@ namespace UI
 
 			heaterSlots.Clear();
 		}
-		OM::GetHeaterSlots(heaterIndex, heaterSlots, OM::SlotType::pJob);
+		OM::GetHeaterSlotsPJob(heaterIndex, heaterSlots);
 		if (!heaterSlots.IsEmpty())
 		{
 			const size_t count = heaterSlots.Size();
@@ -2795,7 +2792,7 @@ namespace UI
 	void UpdateTemperature(size_t heaterIndex, int ival, IntegerButton** fields, IntegerButton* fieldPJog, IntegerButton** fieldsPJob)
 	{
 		OM::HeaterSlots heaterSlots;
-		OM::GetHeaterSlots(heaterIndex, heaterSlots, OM::SlotType::panel, false);	// Ignore tools
+		OM::GetHeaterSlots(heaterIndex, heaterSlots, false);	// Ignore tools
 		if (!heaterSlots.IsEmpty())
 		{
 			const size_t count = heaterSlots.Size();
@@ -2807,7 +2804,7 @@ namespace UI
 			heaterSlots.Clear();
 		}
 
-		OM::GetHeaterSlots(heaterIndex, heaterSlots, OM::SlotType::pJob, false);	// Ignore tools
+		OM::GetHeaterSlotsPJob(heaterIndex, heaterSlots, false);	// Ignore tools
 		if (!heaterSlots.IsEmpty())
 		{
 			const size_t count = heaterSlots.Size();
@@ -4329,6 +4326,14 @@ namespace UI
 					toolSelectButtonsPJog[slotPJog]->SetDrawIcon(true);
 
 					mgr.Show(toolSelectButtonsPJog[slotPJog], true);
+
+					if (tool->index == currentTool)
+					{
+						activeTempPJog->SetValue(tool->activeTemp);
+						standbyTempPJog->SetValue(tool->standbyTemp);
+						mgr.Show(activeTempPJog, true);
+						mgr.Show(standbyTempPJog, true);
+					}
 					++slotPJog;
 				}
 
@@ -4444,6 +4449,10 @@ namespace UI
 	void UpdateToolStatus(size_t toolIndex, ToolStatus status)
 	{
 		auto tool = OM::GetTool(toolIndex);
+		if (tool == nullptr)
+		{
+			return;
+		}
 		tool->status = status;
 		Colour c = /*(status == ToolStatus::standby) ? colours->standbyBackColour : */
 					(status == ToolStatus::active) ? colours->activeBackColour

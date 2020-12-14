@@ -37,13 +37,6 @@ namespace OM {
 		MaxTotalWorkplaces
 	};
 
-	enum SlotType
-	{
-		panel,
-		pJog,
-		pJob
-	};
-
 	struct Axis
 	{
 		uint8_t index = 0;
@@ -144,7 +137,13 @@ namespace OM {
 	void GetHeaterSlots(
 			const size_t heaterIndex,
 			HeaterSlots& heaterSlots,
-			SlotType slotType = SlotType::panel,
+			const bool addTools = true,
+			const bool addBeds = true,
+			const bool addChambers = true);
+
+	void GetHeaterSlotsPJob(
+			const size_t heaterIndex,
+			HeaterSlots& heaterSlots,
 			const bool addTools = true,
 			const bool addBeds = true,
 			const bool addChambers = true);

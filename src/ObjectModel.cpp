@@ -339,7 +339,6 @@ namespace OM
 	void GetHeaterSlots(
 			const size_t heaterIndex,
 			HeaterSlots& heaterSlots,
-			SlotType slotType,
 			const bool addTools,
 			const bool addBeds,
 			const bool addChambers)
@@ -347,63 +346,69 @@ namespace OM
 		if (addBeds)
 		{
 			IterateBeds(
-				[&heaterSlots, heaterIndex, slotType](auto bed) {
-					if (bed->slot < MaxSlots && bed->heater == (int)heaterIndex)
+				[&](auto bed) {
+					if (bed->heater == (int)heaterIndex && bed->slot < MaxSlots)
 					{
-						switch(slotType)
-						{
-						case SlotType::panel:
-							heaterSlots.Add(bed->slot);
-							break;
-						case SlotType::pJog:
-							heaterSlots.Add(bed->slotPJog);
-							break;
-						case SlotType::pJob:
-							heaterSlots.Add(bed->slotPJob);
-							break;
-						}
+						heaterSlots.Add(bed->slot);
 					}
 				});
 		}
 		if (addChambers)
 		{
 			IterateChambers(
-				[&heaterSlots, heaterIndex, slotType](auto chamber) {
-					if (chamber->slot < MaxSlots && chamber->heater == (int)heaterIndex)
+				[&](auto chamber) {
+					if (chamber->heater == (int)heaterIndex && chamber->slot < MaxSlots)
 					{
-						switch(slotType)
-						{
-						case SlotType::panel:
-							heaterSlots.Add(chamber->slot);
-							break;
-						case SlotType::pJog:
-							heaterSlots.Add(chamber->slotPJog);
-							break;
-						case SlotType::pJob:
-							heaterSlots.Add(chamber->slotPJob);
-							break;
-						}
+						heaterSlots.Add(chamber->slot);
 					}
 				});
 		}
 		if (addTools)
 		{
 			IterateTools(
-				[&heaterSlots, heaterIndex, slotType](auto tool) {
-					if (tool->slot < MaxSlots && tool->heater == (int)heaterIndex)
+				[&](auto tool) {
+					if (tool->heater == (int)heaterIndex && tool->slot < MaxSlots)
 					{
-						switch(slotType)
-						{
-						case SlotType::panel:
-							heaterSlots.Add(tool->slot);
-							break;
-						case SlotType::pJog:
-							heaterSlots.Add(tool->slotPJog);
-							break;
-						case SlotType::pJob:
-							heaterSlots.Add(tool->slotPJob);
-							break;
-						}
+						heaterSlots.Add(tool->slot);
+					}
+				});
+		}
+	}
+
+	void GetHeaterSlotsPJob(
+			const size_t heaterIndex,
+			HeaterSlots& heaterSlots,
+			const bool addTools,
+			const bool addBeds,
+			const bool addChambers)
+	{
+		if (addBeds)
+		{
+			IterateBeds(
+				[&](auto bed) {
+					if (bed->heater == (int)heaterIndex && bed->slotPJob < MaxPendantTools)
+					{
+						heaterSlots.Add(bed->slotPJob);
+					}
+				});
+		}
+		if (addChambers)
+		{
+			IterateChambers(
+				[&](auto chamber) {
+					if (chamber->heater == (int)heaterIndex && chamber->slotPJob < MaxPendantTools)
+					{
+						heaterSlots.Add(chamber->slotPJob);
+					}
+				});
+		}
+		if (addTools)
+		{
+			IterateTools(
+				[&](auto tool) {
+					if (tool->heater == (int)heaterIndex && tool->slotPJob < MaxPendantTools)
+					{
+						heaterSlots.Add(tool->slotPJob);
 					}
 				});
 		}
