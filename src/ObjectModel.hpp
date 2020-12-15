@@ -9,15 +9,6 @@
 #define SRC_OBJECTMODEL_HPP_
 
 #include <cstdint>
-
-//#undef array
-//#undef vsnprintf
-//#undef snprintf
-//#include <functional>
-//// Also reinstate the safeguards against using the wrong *snprintf versions
-//#define vsnprintf(b, m, f, a) static_assert(false, "Do not use vsnprintf, use SafeVsnprintf instead")
-//#define snprintf(b, m, f, ...) static_assert(false, "Do not use snprintf, use SafeSnprintf instead")
-
 #include "ToolStatus.hpp"
 #include "UserInterfaceConstants.hpp"
 #include <General/FreelistManager.h>
@@ -41,6 +32,12 @@ namespace OM {
 		G59_2,
 		G59_3,
 		MaxTotalWorkplaces
+	};
+
+	enum SlotType
+	{
+		panel,
+		pJob
 	};
 
 	struct Axis
@@ -201,13 +198,7 @@ namespace OM {
 	void GetHeaterSlots(
 			const size_t heaterIndex,
 			HeaterSlots& heaterSlots,
-			const bool addTools = true,
-			const bool addBeds = true,
-			const bool addChambers = true);
-
-	void GetHeaterSlotsPJob(
-			const size_t heaterIndex,
-			HeaterSlots& heaterSlots,
+			const SlotType slotType = SlotType::panel,
 			const bool addTools = true,
 			const bool addBeds = true,
 			const bool addChambers = true);

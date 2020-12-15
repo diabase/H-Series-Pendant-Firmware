@@ -2052,7 +2052,7 @@ namespace UI
 			heaterSlots.Clear();
 		}
 
-		OM::GetHeaterSlotsPJob(heaterIndex, heaterSlots);
+		OM::GetHeaterSlots(heaterIndex, heaterSlots, OM::SlotType::pJob);
 		if (!heaterSlots.IsEmpty())
 		{
 			const size_t count = heaterSlots.Size();
@@ -2108,7 +2108,7 @@ namespace UI
 
 			heaterSlots.Clear();
 		}
-		OM::GetHeaterSlotsPJob(heaterIndex, heaterSlots);
+		OM::GetHeaterSlots(heaterIndex, heaterSlots, OM::SlotType::pJob);
 		if (!heaterSlots.IsEmpty())
 		{
 			const size_t count = heaterSlots.Size();
@@ -2790,7 +2790,7 @@ namespace UI
 	void UpdateTemperature(size_t heaterIndex, int ival, IntegerButton** fields, IntegerButton* fieldPJog, IntegerButton** fieldsPJob)
 	{
 		OM::HeaterSlots heaterSlots;
-		OM::GetHeaterSlots(heaterIndex, heaterSlots, false);	// Ignore tools
+		OM::GetHeaterSlots(heaterIndex, heaterSlots, OM::SlotType::panel, false);	// Ignore tools
 		if (!heaterSlots.IsEmpty())
 		{
 			const size_t count = heaterSlots.Size();
@@ -2802,7 +2802,7 @@ namespace UI
 			heaterSlots.Clear();
 		}
 
-		OM::GetHeaterSlotsPJob(heaterIndex, heaterSlots, false);	// Ignore tools
+		OM::GetHeaterSlots(heaterIndex, heaterSlots, OM::SlotType::pJob, false);	// Ignore tools
 		if (!heaterSlots.IsEmpty())
 		{
 			const size_t count = heaterSlots.Size();
