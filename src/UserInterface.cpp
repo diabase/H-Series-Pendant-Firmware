@@ -2761,9 +2761,13 @@ namespace UI
 	}
 
 	// Update the fan RPM
-	void UpdateFanPercent(int rpm)
+	void UpdateFanPercent(size_t fanIndex, int rpm)
 	{
-		UpdateField(fanSpeed, rpm);
+		auto tool = OM::GetToolForFan(fanIndex);
+		if (tool != nullptr && tool->index == currentTool)
+		{
+			UpdateField(fanSpeed, rpm);
+		}
 	}
 
 	void UpdateToolTemp(size_t toolIndex, int32_t temp, bool active)
@@ -4474,6 +4478,11 @@ namespace UI
 	void SetToolExtruder(size_t toolIndex, int8_t extruder)
 	{
 		OM::GetOrCreateTool(toolIndex)->extruder = extruder;
+	}
+
+	void SetToolFan(size_t toolIndex, int8_t fan)
+	{
+		OM::GetOrCreateTool(toolIndex)->fan = fan;
 	}
 
 	void SetToolHeater(size_t toolIndex, int8_t heater)
