@@ -1,6 +1,7 @@
 # Version 3.2.6
 ## Upgrade Notes:
 - This release is compatible with RepRapFirmware 3.2-beta1 or later. It will partially work with RepRapFirmware 3.1.1 but not with any older version.
+- This release will reset to factory defaults
 
 # Limitations
 - Due to the lack of RAM this build will not run on version 1 or early version 2 PanelDue boards that use the `ATSAM3S2B` chip.
@@ -13,6 +14,7 @@
 ## Changed:
 * Improve data structures to hold the ObjectModel data
 * Use more of the common code base from RRFLibraries to get rid of duplicate code
+* Default baud rate now set to 115200 (3.2.6+1)
 
 ## Bug fixes:
 * Fix memory leaks

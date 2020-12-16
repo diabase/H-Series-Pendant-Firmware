@@ -3,7 +3,7 @@
  *
  * Created: 16/01/2015 13:18:16
  *  Author: David
- */ 
+ */
 
 
 #ifndef CONFIGURATION_H_
@@ -54,7 +54,7 @@
 #define IS_ER			(false)
 #endif
 
-const uint32_t DefaultBaudRate = 57600;
+const uint32_t DefaultBaudRate = 115200;
 const uint32_t DimDisplayTimeout = 60000;				// dim this display after no activity for this number of milliseconds
 const uint32_t DefaultScreensaverTimeout = 120000;		// enable screensaver after no activity for this number of milliseconds
 const uint32_t ScreensaverMoveTime = 10000;				// Jog around screen saver text after this number of milliseconds
