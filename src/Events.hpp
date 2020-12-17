@@ -48,7 +48,7 @@ enum Event : uint8_t
 	evMoveAxis, evMoveAxisP,
 	evExtrudeAmount, evExtrudeRate, evExtrude, evRetract,
 	evExtrudeAmountP, evExtrudeRateP,
-	evWCSSelect,
+	evWCSDisplaySelect, evActivateWCS,
 	evHomeAxis,
 
 	// Print functions

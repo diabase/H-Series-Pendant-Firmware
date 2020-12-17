@@ -78,7 +78,8 @@ static FloatField *controlTabAxisPos[MaxDisplayableAxes];
 static FloatField *printTabAxisPos[MaxDisplayableAxes];
 static FloatField *movePopupAxisPos[MaxDisplayableAxes];
 static FloatField *jogTabAxisPos[MaxDisplayableAxesP], *jobTabAxisPos[MaxDisplayableAxesP];
-static DisplayField *jogAxisButtons;
+static DisplayField *jogAxisButtons, *wcsSelectButtons, *wcsAdjustAmountButtons;
+static TextButton *activateWCSButton;
 static IconButtonWithText *toolSelectButtonsPJog[MaxPendantTools], *toolButtonsPJob[MaxPendantTools];
 static FloatField *currentTemps[MaxSlots];
 static FloatField *currentTempPJog;
@@ -160,7 +161,7 @@ static PixelNumber screensaverTextWidth = 0;
 static uint32_t lastScreensaverMoved = 0;
 
 static int8_t currentTool = -2;							// Initialized to a value never returned by RRF to have the logic for "no tool" applied at startup
-static uint8_t currentWorkplaceNumber = 0;
+static uint8_t currentWorkplaceNumber = OM::MaxTotalWorkplaces;
 static bool allAxesHomed = false;
 
 #ifdef SUPPORT_ENCODER
@@ -882,7 +883,7 @@ void CreateWCSOffsetsPopup(const ColourScheme& colours)
 {
 	static const char * _ecv_array wcsParams[] = { "1", "2", "3", "4", "5", "6", "7", "8", "9" };
 
-	wcsOffsetsPopup = new StandardPopupWindow(fullPopupHeightP, fullPopupWidthP, colours.popupBackColour, colours.popupBorderColour, colours.popupTextColour, colours.buttonImageBackColour, strings->axesOffsets);
+	wcsOffsetsPopup = new StandardPopupWindow(fullPopupHeightP - rowHeightP, fullPopupWidthP, colours.popupBackColour, colours.popupBorderColour, colours.popupTextColour, colours.buttonImageBackColour, strings->axesOffsets);
 	PixelNumber ypos = popupTopMargin + buttonHeight + 20;
 
 	const PixelNumber width = CalcWidth(4, fullPopupWidthP - 2 * popupSideMargin);
@@ -897,8 +898,14 @@ void CreateWCSOffsetsPopup(const ColourScheme& colours)
 			ARRAY_SIZE(wcsNames),
 			wcsNames,
 			wcsParams,
-			evWCSSelect,
-			0);
+			evWCSDisplaySelect,
+			0,
+			false,
+			&wcsSelectButtons);
+
+	wcsOffsetsPopup->AddField(activateWCSButton = new TextButton(ypos, CalcXPos(1, width, popupSideMargin), width*3 + 2*fieldSpacing, strings->selectWCS, evActivateWCS, 0));
+
+	ypos += buttonHeight + fieldSpacing;
 	for (size_t i = 0; i < ARRAY_SIZE(jogAxes); ++i)
 	{
 		DisplayField::SetDefaultColours(colours.titleBarTextColour, colours.titleBarBackColour);
@@ -913,7 +920,27 @@ void CreateWCSOffsetsPopup(const ColourScheme& colours)
 	ypos += buttonHeight * 1.5 + fieldSpacing;
 
 	static const float _ecv_array wcsAxisMovementAmounts[] { 0.001, 0.01, 0.1, 1.0, 10.0 };
-	currentWCSAxisMovementPress = CreateFloatButtonRow(wcsOffsetsPopup, ypos, popupSideMargin, fullPopupWidthP - 2 * popupSideMargin, fieldSpacing, ARRAY_SIZE(wcsAxisMovementAmounts), nullptr, 3, wcsAxisMovementAmounts, evSelectAxisForWCSFineControl, 1);
+	currentWCSAxisMovementPress =
+			CreateFloatButtonRow(
+					wcsOffsetsPopup,
+					ypos,
+					popupSideMargin,
+					fullPopupWidthP - 2 * popupSideMargin,
+					fieldSpacing,
+					ARRAY_SIZE(wcsAxisMovementAmounts),
+					nullptr,
+					3,
+					wcsAxisMovementAmounts,
+					evSelectAxisForWCSFineControl,
+					1,
+					&wcsAdjustAmountButtons);
+
+	// Hide the buttons initially
+	DisplayField* f = wcsAdjustAmountButtons;
+	for (size_t i = 0; i < ARRAY_SIZE(wcsAxisMovementAmounts) && f != nullptr; ++i) {
+		mgr.Show(f, false);
+		f = f->next;
+	}
 }
 
 
@@ -3450,10 +3477,10 @@ namespace UI
 				break;
 
 			case evWCSOffsetsPopup:
-				mgr.SetPopupP(wcsOffsetsPopup, AutoPlace, AutoPlace);
+				mgr.SetPopupP(wcsOffsetsPopup, AutoPlace, row2P);
 				break;
 
-			case evWCSSelect:
+			case evWCSDisplaySelect:
 				{
 					mgr.Press(currentWCSPress, false);
 					mgr.Press(bp, true);
@@ -3461,6 +3488,14 @@ namespace UI
 					currentButton.Clear();						// stop it being released by the timer
 					uint8_t wcsNumber = bp.GetSParam()[0] - 49;
 					UpdateWCSOffsetsPopupPositions(wcsNumber);
+					activateWCSButton->SetEvent(activateWCSButton->GetEvent(), wcsNumber);
+					mgr.Show(activateWCSButton, wcsNumber != currentWorkplaceNumber);
+				}
+				break;
+
+			case evActivateWCS:
+				{
+					SerialIo::Sendf("%s\n", wcsNames[activateWCSButton->GetIParam(0)]);
 				}
 				break;
 
@@ -4570,14 +4605,31 @@ namespace UI
 		{
 			return;
 		}
+		uint8_t oldWorkplaceNumber = currentWorkplaceNumber;
 		currentWorkplaceNumber = workplaceNumber;
 		currentWCSField->SetValue(wcsNames[currentWorkplaceNumber]);
 
-		const uint8_t wcsSelectedInPopup = currentWCSPress.GetSParam()[0]-49;
+		DisplayField *f = wcsSelectButtons;
+		for (size_t i = 0; i < OM::MaxTotalWorkplaces && f != nullptr; ++i)
+		{
+			TextButton* tb = static_cast<TextButton*>(f);
+			if (i == oldWorkplaceNumber)
+			{
+				tb->SetText(wcsNames[oldWorkplaceNumber]);
+			}
+			else if (i == currentWorkplaceNumber)
+			{
+				tb->SetText(wcsNamesSelected[currentWorkplaceNumber]);
+			}
+			f = f->next;
+		}
+
+		const uint8_t wcsSelectedInPopup = currentWCSPress.GetSParam()[0]-49;  // Convert char to 0-based int
 		if (currentWorkplaceNumber == wcsSelectedInPopup)
 		{
 			UpdateWCSOffsetsPopupPositions(wcsSelectedInPopup);
 		}
+		mgr.Show(activateWCSButton, wcsSelectedInPopup != currentWorkplaceNumber);
 	}
 
 	void SetBedOrChamberHeater(const uint8_t heaterIndex, const int8_t heaterNumber, bool bed)

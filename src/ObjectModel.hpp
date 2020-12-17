@@ -20,7 +20,7 @@
 #endif
 
 namespace OM {
-	enum Workplaces
+	enum Workplaces : uint8_t
 	{
 		G54,
 		G55,

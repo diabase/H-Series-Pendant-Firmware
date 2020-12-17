@@ -99,6 +99,7 @@ struct StringTable
 	CSTRING wcsOffsets;
 	CSTRING edit;
 	CSTRING axesOffsets;
+	CSTRING selectWCS;
 	CSTRING setToCurrent;
 
 	// Pendant Job page
@@ -229,6 +230,7 @@ const StringTable LanguageTables[NumLanguages] =
 		"WCS Offsets",
 		"Edit",
 		"Axes Offsets",
+		"Select WCS",
 		"Set to current",
 
 		// Pendant Job tab
@@ -379,6 +381,7 @@ const StringTable LanguageTables[NumLanguages] =
 		"WCS Offsets",
 		"Edit",
 		"Axes Offsets",
+		"Select WCS",
 		"Set to current",
 
 		// Pendant Job tab
@@ -528,6 +531,7 @@ const StringTable LanguageTables[NumLanguages] =
 		"WCS Offsets",
 		"Edit",
 		"Axes Offsets",
+		"Select WCS",
 		"Set to current",
 
 		// Pendant Job tab
@@ -677,6 +681,7 @@ const StringTable LanguageTables[NumLanguages] =
 		"WCS Offsets",
 		"Edit",
 		"Axes Offsets",
+		"Select WCS",
 		"Set to current",
 
 		// Pendant Job tab
@@ -826,6 +831,7 @@ const StringTable LanguageTables[NumLanguages] =
 		"WCS Offsets",
 		"Edit",
 		"Axes Offsets",
+		"Select WCS",
 		"Set to current",
 
 		// Pendant Job tab
