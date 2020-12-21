@@ -120,7 +120,7 @@ static ButtonPress currentButton;
 static ButtonPress fieldBeingAdjusted;
 static ButtonPress currentExtrudeRatePress, currentExtrudeAmountPress;
 static ButtonPress currentExtrudeRatePressP, currentExtrudeAmountPressP;
-static ButtonPress currentWCSPress, currentWCSAxisMovementPress;
+static ButtonPress currentWCSPress, currentWCSAxisSelectPress, currentWCSAxisMovementAmountPress;
 
 static String<machineNameLength> machineName;
 static String<printingFileLength> printingFile;
@@ -673,6 +673,18 @@ int IsVisibleAxisPendant(const char * axis)
 	return -1;
 }
 
+int GetAxisIndex(const char* axisLetter)
+{
+	for (size_t i = 0; i < MaxTotalAxes; ++i)
+	{
+		if (axisNames[i][0] == axisLetter[0])
+		{
+			return i;
+		}
+	}
+	return -1;
+}
+
 // Nasty hack to work around bug in RepRapFirmware 1.09k and earlier
 // The M23 and M30 commands don't work if we send the full path, because "0:/gcodes/" gets prepended regardless.
 const char * _ecv_array StripPrefix(const char * _ecv_array dir)
@@ -912,15 +924,16 @@ void CreateWCSOffsetsPopup(const ColourScheme& colours)
 		wcsOffsetsPopup->AddField(new StaticTextField(ypos, CalcXPos(1, width, popupSideMargin), width*3 + 2*fieldSpacing, TextAlignment::Centre, jogAxes[i]));
 		ypos += buttonHeight + fieldSpacing;
 		DisplayField::SetDefaultColours(colours.popupButtonTextColour, colours.popupButtonBackColour);
-		wcsOffsetsPopup->AddField(wcsOffsetPos[i] = new FloatButton(ypos, CalcXPos(1, width, popupSideMargin), width, 3));
+		wcsOffsetsPopup->AddField(wcsOffsetPos[i] = new FloatButton(ypos, CalcXPos(1, width, popupSideMargin), width*2 + fieldSpacing, 3));
+		wcsOffsetPos[i]->SetEvent(evSelectAxisForWCSFineControl, jogAxes[i]);
 		DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonImageBackColour);
-		wcsOffsetsPopup->AddField(wcsSetToCurrent[i] = new IconButton(ypos, CalcXPos(2, width, popupSideMargin), width, IconSetToCurrent, evSetAxesOffsetToCurrent, jogAxes[i]));
+		wcsOffsetsPopup->AddField(wcsSetToCurrent[i] = new IconButton(ypos, CalcXPos(3, width, popupSideMargin), width, IconSetToCurrent, evSetAxesOffsetToCurrent, jogAxes[i]));
 		ypos += buttonHeight + fieldSpacing;
 	}
 	ypos += buttonHeight * 1.5 + fieldSpacing;
 
 	static const float _ecv_array wcsAxisMovementAmounts[] { 0.001, 0.01, 0.1, 1.0, 10.0 };
-	currentWCSAxisMovementPress =
+	currentWCSAxisMovementAmountPress =
 			CreateFloatButtonRow(
 					wcsOffsetsPopup,
 					ypos,
@@ -931,7 +944,7 @@ void CreateWCSOffsetsPopup(const ColourScheme& colours)
 					nullptr,
 					3,
 					wcsAxisMovementAmounts,
-					evSelectAxisForWCSFineControl,
+					evSelectAmountForWCSFineControl,
 					1,
 					&wcsAdjustAmountButtons);
 
@@ -2478,6 +2491,7 @@ namespace UI
 		default:
 			break;
 		}
+		bool sent = false;
 		const PopupWindow *popup = mgr.GetPopup();
 		// There is a pop-up - we will exit here after possibly doing something
 		if (popup != nullptr)
@@ -2522,11 +2536,32 @@ namespace UI
 					}
 					ib->SetValue(newValue);
 				}
+				return;
 			}
-			return;
+			else if (popup == wcsOffsetsPopup)
+			{
+				if (currentWCSAxisSelectPress.IsValid() && currentWCSAxisMovementAmountPress.IsValid())
+				{
+					const float adjustAmount = currentWCSAxisMovementAmountPress.GetFParam();
+					FloatButton *axisValue = static_cast<FloatButton*>(currentWCSAxisSelectPress.GetButton());
+					const char* currentWCSNumber = static_cast<TextButton*>(currentWCSPress.GetButton())->GetSParam(0);
+					const int workplaceIndex = currentWCSNumber[0] - 49;
+					const char *axisLetter = axisValue->GetSParam(0);
+					const int axisIndex = GetAxisIndex(axisLetter);
+					const float changeAmount = change * adjustAmount;
+					SerialIo::Sendf(
+							"G10 L2 P%s %s{move.axes[%d].workplaceOffsets[%d] + %.3f}\n",
+							currentWCSNumber,
+							axisLetter,
+							axisIndex,
+							workplaceIndex,
+							changeAmount);
+					axisValue->SetValue(axisValue->GetValue()+changeAmount);
+					sent = true;
+				}
+			}
 		}
 
-		bool sent = false;
 		// Jog axis around
 		if (currentTab == tabJog && status != PrinterStatus::printing)
 		{
@@ -3115,6 +3150,15 @@ namespace UI
 				rate);
 	}
 
+	PixelNumber GetEncoderSetPopupYPos(ButtonBase *f) {
+		// Try to fit it below but fall back to above if not enough space
+		return
+				(f->GetMaxY() + margin + setTempPopupEncoder->GetHeight())
+						<= DisplayYP ?
+						f->GetMaxY() + margin :
+						f->GetMinY() - margin - setTempPopupEncoder->GetHeight();
+	}
+
 	// Process a touch event
 	void ProcessTouch(ButtonPress bp)
 	{
@@ -3238,12 +3282,7 @@ namespace UI
 				else
 				{
 					const PixelNumber xPos = f->GetMinX();
-					// Try to fit it below but fall back to above if not enough space
-					const PixelNumber yPos =
-							(f->GetMaxY() + margin + setTempPopupEncoder->GetHeight()) <= DisplayYP
-								? f->GetMaxY() + margin
-								: f->GetMinY() - margin - setTempPopupEncoder->GetHeight();
-					mgr.SetPopupP(setTempPopupEncoder, xPos, yPos);
+					mgr.SetPopupP(setTempPopupEncoder, xPos, GetEncoderSetPopupYPos(f));
 				}
 				break;
 
@@ -3257,12 +3296,7 @@ namespace UI
 				{
 					oldIntValue = static_cast<IntegerButton*>(bp.GetButton())->GetValue();
 					const PixelNumber xPos = f->GetMinX();
-					// Try to fit it below but fall back to above if not enough space
-					const PixelNumber yPos =
-							(f->GetMaxY() + margin + setTempPopupEncoder->GetHeight()) <= DisplayYP
-								? f->GetMaxY() + margin
-								: f->GetMinY() - margin - setTempPopupEncoder->GetHeight();
-					mgr.SetPopupP(setTempPopupEncoder, xPos, yPos);
+					mgr.SetPopupP(setTempPopupEncoder, xPos, GetEncoderSetPopupYPos(f));
 				}
 				break;
 
@@ -3279,12 +3313,7 @@ namespace UI
 				else
 				{
 					const PixelNumber xPos = f->GetMinX();
-					// Try to fit it below but fall back to above if not enough space
-					const PixelNumber yPos =
-							(f->GetMaxY() + margin + setTempPopupEncoder->GetHeight()) <= DisplayYP
-								? f->GetMaxY() + margin
-								: f->GetMinY() - margin - setTempPopupEncoder->GetHeight();
-					mgr.SetPopupP(setTempPopupEncoder, xPos, yPos);
+					mgr.SetPopupP(setTempPopupEncoder, xPos, GetEncoderSetPopupYPos(f));
 				}
 				break;
 
@@ -3494,9 +3523,37 @@ namespace UI
 				break;
 
 			case evActivateWCS:
+				SerialIo::Sendf("%s\n", wcsNames[activateWCSButton->GetIParam(0)]);
+				break;
+
+			case evSelectAxisForWCSFineControl:
 				{
-					SerialIo::Sendf("%s\n", wcsNames[activateWCSButton->GetIParam(0)]);
+					const bool otherButtonPressed = currentWCSAxisSelectPress != bp;
+					mgr.Press(currentWCSAxisSelectPress, false);
+					mgr.Press(bp, otherButtonPressed);
+					if (otherButtonPressed)
+					{
+						currentWCSAxisSelectPress = bp;
+					}
+					else
+					{
+						currentWCSAxisSelectPress.Clear();
+						SerialIo::Sendf("M500\n");
+					}
+					currentButton.Clear();						// stop it being released by the timer
+					DisplayField* f = wcsAdjustAmountButtons;
+					for (size_t i = 0; i < 5 && f != nullptr; ++i) {
+						mgr.Show(f, otherButtonPressed);
+						f = f->next;
+					}
 				}
+				break;
+
+			case evSelectAmountForWCSFineControl:
+				mgr.Press(currentWCSAxisMovementAmountPress, false);
+				mgr.Press(bp, true);
+				currentWCSAxisMovementAmountPress = bp;
+				currentButton.Clear();						// stop it being released by the timer
 				break;
 
 			case evSetAxesOffsetToCurrent:
@@ -4584,6 +4641,14 @@ namespace UI
 		}
 	}
 
+	uint8_t UpdateWCSOffsetValues(const uint8_t wcs) {
+		const uint8_t wcsSelectedInPopup = currentWCSPress.GetSParam()[0] - 49;
+		if (wcs == wcsSelectedInPopup) {
+			UpdateWCSOffsetsPopupPositions(wcsSelectedInPopup);
+		}
+		return wcsSelectedInPopup;
+	}
+
 	void SetAxisWorkplaceOffset(size_t axisIndex, size_t workplaceIndex, float offset)
 	{
 		if (axisIndex < MaxTotalAxes && workplaceIndex < OM::Workplaces::MaxTotalWorkplaces)
@@ -4591,11 +4656,7 @@ namespace UI
 			OM::Axis *axis = OM::GetOrCreateAxis(axisIndex);
 			axis->workplaceOffsets[workplaceIndex] = offset;
 
-			const uint8_t wcsSelectedInPopup = currentWCSPress.GetSParam()[0]-49;
-			if (currentWorkplaceNumber == wcsSelectedInPopup)
-			{
-				UpdateWCSOffsetsPopupPositions(wcsSelectedInPopup);
-			}
+			UpdateWCSOffsetValues(workplaceIndex);
 		}
 	}
 
@@ -4624,11 +4685,7 @@ namespace UI
 			f = f->next;
 		}
 
-		const uint8_t wcsSelectedInPopup = currentWCSPress.GetSParam()[0]-49;  // Convert char to 0-based int
-		if (currentWorkplaceNumber == wcsSelectedInPopup)
-		{
-			UpdateWCSOffsetsPopupPositions(wcsSelectedInPopup);
-		}
+		const uint8_t wcsSelectedInPopup = UpdateWCSOffsetValues(workplaceNumber);
 		mgr.Show(activateWCSButton, wcsSelectedInPopup != currentWorkplaceNumber);
 	}
 
