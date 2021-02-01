@@ -1607,7 +1607,13 @@ void UTFT::drawRoundRect(int x1, int y1, int x2, int y2)
 	}
 }
 
-// Apply the specified gradient to the foreground colour, but avoid wrap-round
+// Apply the specified gradient to the foreground color
+// Since this does no wrap-around-check the color and the gradient
+// have to be chosen such that there does not happen a wrap around
+// For the default light gradient UTFT::fromRGB(255-8-8, 255-8-4, 255-8)
+// this means a minimum of 32 for red and blue and 24 for green
+// and for default dark gradient UTFT::fromRGB(8, 8, 8)
+// this means maximum of 239 for r, g, b
 inline void UTFT::applyGradient(uint16_t grad)
 {
 	fcolour += grad;
@@ -2000,6 +2006,12 @@ size_t UTFT::writeNative(uint16_t c)
     {
 		c = 0x007F;			// replace unsupported characters by square box
     }
+#if USE_CYRILLIC_CHARACTERS
+    else if (c >= 1025 && c <= 1169)
+    {
+    	c -= 641;				// Cyrillic characters are shifted down to save space
+    }
+#endif
 
 	uint8_t ySize = cfont.y_size;
     const uint8_t bytesPerColumn = (ySize + 7)/8;

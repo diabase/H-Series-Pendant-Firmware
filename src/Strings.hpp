@@ -20,7 +20,7 @@
 #define Newline			"\n"
 #define DegreeSymbol	"\u00B0"
 
-constexpr unsigned int NumLanguages = 5;
+constexpr unsigned int NumLanguages = 6 + USE_CYRILLIC_CHARACTERS;
 constexpr unsigned int NumStatusStrings = 14;
 
 struct StringTable
@@ -903,7 +903,276 @@ const StringTable LanguageTables[NumLanguages] =
 			"Pohasnout při nečinnosti",
 			"Pohasnout vždy"
 		}
+	},
+
+		// Italian
+		{
+			// ISO-639.1 language code
+			"it",
+
+			// Main page strings
+			"Controlla",
+			"Stampa",
+			"Console",
+			"Pendant",
+			"Configura",
+			"Corrente" THIN_SPACE DEGREE_SYMBOL "C",
+			"Attiva" THIN_SPACE DEGREE_SYMBOL "C",
+			"Standby" THIN_SPACE DEGREE_SYMBOL "C",
+			"Muovi",
+			"Estrusione",
+			"Macro",
+			"FERMA",
+
+			// Print page
+			"Estrusore" THIN_SPACE "%",
+			"Velocità ",							// note space at end
+			"Ventola ",								// note space at end
+			"Tempo rimanente: ",
+			"file ",							// note space at end
+			", filamento ",						// note space at end
+			", layer ",							// note space at end
+			"n/a",
+			"Pausa",
+			"Baby step",
+			"Riprendi",
+			"Cancella",
+			"Stampa di nuovo",
+			"Simula di nuovo",
+			"Imposta",
+
+			// Setup page
+			"Volume ",							// note space at end
+			"Calibra touch",
+			"Specchia schermo",
+			"Inverti schermo",
+			"Tema",
+			"Luminosità -",
+			"Luminosità +",
+			"Salva impostazioni",
+			"Resetta impostazioni",
+			"Salva & Riavvia",
+			"Info timeout ",					// note space at end
+			"Salvaschermo ",					// note space at end
+			"Babystep ",						// note space at end
+			"Feedrate ",						// note space at end
+
+			// Pendant root
+			"Panel",
+			"Jog",
+			"Offset",
+			"Job",
+
+			// Pendant Jog tab
+			"Axis",
+			"Movement",
+			"Current",
+			"Homing",
+			"Measure Z",
+			"Confirm Measure Z",
+			"Tools",
+			"Probe",
+
+			// Pendant Offset tab
+			"Probe Workpiece",
+			"Find Center of Cavity",
+			"Touch-off Plate",
+			"Set Tool Offset",
+			"WCS Offsets",
+			"Edit",
+			"Axes Offsets",
+			"Select WCS",
+			"Set to current",
+
+			// Pendant Job tab
+			"No job running",
+			"Extrd. ",
+			"Spindle RPM ",
+			"Heat Control",
+
+			// Misc
+			"Conferma reset impostazioni",
+			"Confirma eliminazione file",
+			"Sei sicuro?",
+			"Tocca il punto",
+			"Muovi testa",
+			"Quantità estrusione (mm)",
+			"Velocità (mm/s)",
+			"Estrudi",
+			"Retrai",
+			"Baby stepping",
+			"Z offset corrente: ",
+			"Messaggio",
+			"Messaggi",
+			"Versione firmware Panel Due ",	// note space at end
+			"Risposta",
+
+			// File popup
+			"File su card ",				// note the space on the end
+			"Macro",
+			"Errore ",						// note the space at the end
+			" accedendo alla SD card",			// note the space at the start
+			"Nome file: ",
+			"Dimensione: ",
+			"Altezza layer: ",
+			"Altezza oggetto: ",
+			"Filamento necessario: ",
+			"Slice effettuato con: ",
+			"Ultima modifica: ",
+			"Tempo di stampa stimato: ",
+			"Tempo di stampa simulato: ",
+			"Simula",
+
+			// Printer status strings
+			{
+				"Connettendo",
+				"Idle",
+				"Stampando",
+				"Fermato",
+				"Avviando",
+				"Pausa",
+				"Occupato",
+				"Pausa",
+				"Riprendendo",
+				"Caricamento firmware",
+				"Cambiando tool",
+				"Simulando",
+				"Standby",
+				"Inizializzando",
+			},
+
+			// Theme names
+			{
+				"Tema chiaro",
+				"Tema scuro 1",
+				"Tema scuro 2"
+			},
+
+			// Display dimming types
+			{
+				"Non attenuare",
+				"Attenua se idle",
+				"Attenua sempre"
+			}
+	 	},
+
+#if USE_CYRILLIC_CHARACTERS
+	// Ukrainian
+	{
+		"uk",
+
+		// Main page strings
+		"Контроль",
+		"Друк",
+		"Консоль",
+		"Налаштування",
+		"Поточна" THIN_SPACE DEGREE_SYMBOL "C",
+		"Активна" THIN_SPACE DEGREE_SYMBOL "C",
+		"Очікувана" THIN_SPACE DEGREE_SYMBOL "C",
+		"Рух",
+		"Екструзія",
+		"Макро",
+		"СТОП",
+
+		// Print page
+		"Екструдер" THIN_SPACE "%",
+		"Швидкість ",             // note space at end
+		"Вентилятор ",               // note space at end
+		"Залишилось часу: ",
+		"файл ",              // note space at end
+		", філамент ",            // note space at end
+		", шар ",             // note space at end
+		"-",
+		"Пауза",
+		"Мікрокрок",
+		"Продовжиити",
+		"Відмінити",
+		"Друкувати знову",
+		"Симулювати знову",
+		"Встановити",
+
+		// Setup page
+		"Гучність ",              // note space at end
+		"Калібрув. дотик",
+		"Відзеркалити дисп.",
+		"Перевернути диспл.",
+		"Тема",
+		"Яскравість -",
+		"Яскравість +",
+		"Зберегти налашт.",
+		"Скинути налашт.",
+		"Зберегти & Перезавантажити",
+		"Вичерпаний час очікування на інформацію ",          // note space at end
+		"Заставка ",           // note space at end
+		"Мікрокрок ",            // note space at end
+		"Подача ",            // note space at end
+
+		// Misc
+		"Підтвердіть скинення до заводських налаштуванб",
+		"Підтвердіть видалення файлу",
+		"Ви впевнені?",
+		"Доторкніться до точки",
+		"Рухати головку",
+		"Кількість екструзії (мм/с)",
+		"Швидкість (мм/с)",
+		"Екструдувати",
+		"Ретракт",
+		"Мікрокрок",
+		"Поточне зміщення Z: ",
+		"Повідомлення",
+		"Повідомлення",
+		"Версія прошивки Panel Due ",  // note space at end
+		"Відповідь",
+
+		// File popup
+		"Файли на картці ",       // note the space on the end
+		"Макроси",
+		"Помилка ",           // note the space at the end
+		" доступу до SD-картки",     // note the space at the start
+		"Ім'я файлу: ",
+		"Розмір: ",
+		"Висота шару: ",
+		"Висота об'єктуt: ",
+		"Потрібен філамент: ",
+		"Автор слайсу: ",
+		"Востаннє змінено: ",
+		"Приблизний час друку: ",
+		"Симульований час друку: ",
+		"Симулювати",
+
+		// Printer status strings
+		{
+			"Підключення",
+			"Бездіяльність",
+			"Друкую",
+			"Зупинено",
+			"Запуск",
+			"Зупинений",
+			"Зайнятий",
+			"Зупиняю",
+			"Продовжую",
+			"Завантаження прошивки",
+			"Змінюю інструмент",
+			"Симулюю",
+			"Зачекайте",
+			"Ініціалізовую",
+		},
+
+		// Theme names
+		{
+			"Світла тема",
+			"Темна тема 1",
+			"Темна тема 2"
+		},
+
+		// Display dimming types
+		{
+			"Ніколи не тьмяніти",
+			"Тьмяніти за бездіяльності",
+			"Завжди тьмяніти"
+		}
 	}
+#endif
 };
 
 #endif /* SRC_STRINGS_HPP_ */

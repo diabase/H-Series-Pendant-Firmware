@@ -24,7 +24,7 @@ extern void ProcessReceivedValue(StringRef id, const char val[], const size_t in
 extern void ProcessArrayEnd(const char id[], const size_t indices[]);
 extern void StartReceivedMessage();
 extern void EndReceivedMessage();
-extern void ParserErrorEncountered();
+extern void ParserErrorEncountered(const char* id, const char* data, const size_t indices[]);
 
 // Functions called from module UserInterface
 enum class DisplayDimmerType : uint8_t
@@ -82,7 +82,7 @@ extern MainWindow mgr;
 class ColourScheme;
 extern const ColourScheme *colours;
 
-const size_t MIN_AXES = 3;					// the minimum number of axes we support
+const size_t MIN_AXES = 2;					// the minimum number of axes we support
 
 const size_t alertTextLength = 165;			// maximum characters in the alert text
 const size_t alertTitleLength = 50;			// maximum characters in the alert title

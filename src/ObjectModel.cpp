@@ -19,8 +19,9 @@ static ToolList tools;
 static BedList beds;
 static ChamberList chambers;
 
+
 template<typename L, typename T>
-T* GetOrCreate(L& list, size_t index, bool create)
+T* GetOrCreate(L& list, const size_t index, const bool create)
 {
 	const size_t count = list.Size();
 	for (size_t i = 0; i < count; ++i)
@@ -31,7 +32,7 @@ T* GetOrCreate(L& list, size_t index, bool create)
 		}
 	}
 
-	if (create)
+	if (create && !list.Full())
 	{
 		T* elem = new T;
 		elem->Reset();
@@ -89,23 +90,24 @@ bool IterateWhile(L& list, stdext::inplace_function<bool(T*)> func, const size_t
 }
 
 template<typename L, typename T>
-size_t Remove(L& list, size_t index, bool allFollowing)
+size_t Remove(L& list, const size_t index, const bool allFollowing)
 {
-	size_t removed = 0;
-	// Nothing to do on an empty list
-	if (list.IsEmpty())
+	// Nothing to do on an empty list or
+	// if the last element is already smaller than what we look for
+	if (list.IsEmpty() || list[list.Size()-1]->index < index)
 	{
-		return removed;
+		return 0;
 	}
 
-	const size_t count = list.Size();
-	for (size_t i = count - 1; i > 0; --i)
+	size_t removed = 0;
+	for (size_t i = list.Size(); i != 0;)
 	{
+		--i;
 		T* elem = list[i];
 		if (elem->index == index || (allFollowing && elem->index > index))
 		{
-			delete elem;
 			list.Erase(i);
+			delete elem;
 			++removed;
 			if (!allFollowing)
 			{
@@ -116,14 +118,163 @@ size_t Remove(L& list, size_t index, bool allFollowing)
 	return removed;
 }
 
-namespace OM
+void OM::Axis::Reset()
 {
-
-	Axis* FindAxis(stdext::inplace_function<bool(Axis*)> filter)
+	index = 0;
+	babystep = 0.0f;
+	letter[0] = 0;
+	letter[1] = 0;
+	for (size_t i = 0; i < MaxTotalWorkplaces; ++i)
 	{
-		return Find(axes, filter);
+		workplaceOffsets[i] = 0.0f;
+	}
+	homed = false;
+	visible = false;
+	slot = MaxSlots;
+	slotP = MaxPendantTools;
+}
+
+void OM::Spindle::Reset()
+{
+	index = 0;
+	active = 0;
+	max = 10000;
+	min = 0;
+	tool = -1;
+}
+
+void OM::ToolHeater::Reset()
+{
+	heaterIndex = 0;
+	activeTemp = 0;
+	standbyTemp = 0;
+}
+
+void OM::Tool::operator delete(void * p)
+{
+	Tool* t = static_cast<Tool*>(p);
+	for (size_t i = 0; i < MaxHeatersPerTool; ++i)
+	{
+		delete t->heaters[i];
+	}
+	FreelistManager::Release<Tool>(p);
+}
+
+OM::ToolHeater* OM::Tool::GetOrCreateHeater(const uint8_t toolHeaterIndex)
+{
+	if (toolHeaterIndex >= MaxHeatersPerTool)
+	{
+		return nullptr;
+	}
+	if (heaters[toolHeaterIndex] != nullptr)
+	{
+		return heaters[toolHeaterIndex];
+	}
+	ToolHeater* th = new ToolHeater;
+	th->Reset();
+	heaters[toolHeaterIndex] = th;
+	return th;
+}
+
+bool OM::Tool::GetHeaterTemps(const StringRef& ref, const bool active)
+{
+	for (size_t i = 0; i < MaxHeatersPerTool && heaters[i] != nullptr; ++i)
+	{
+		if (i > 0)
+		{
+			ref.cat(':');
+		}
+		ref.catf("%d", (active ? heaters[i]->activeTemp : heaters[i]->standbyTemp));
 	}
 
+	return !ref.IsEmpty();
+}
+
+int8_t OM::Tool::HasHeater(const uint8_t heaterIndex) const
+{
+	for (size_t i = 0; i < MaxHeatersPerTool && heaters[i] != nullptr; ++i)
+	{
+		if (heaters[i]->heaterIndex == (int) heaterIndex)
+		{
+			return i;
+		}
+	}
+	return -1;
+}
+
+void OM::Tool::IterateHeaters(stdext::inplace_function<void(ToolHeater*, size_t)> func, const size_t startAt)
+{
+	for (size_t i = startAt; i < MaxHeatersPerTool && heaters[i] != nullptr; ++i)
+	{
+		func(heaters[i], i);
+	}
+}
+
+size_t OM::Tool::RemoveHeatersFrom(const uint8_t heaterIndex)
+{
+	if (heaterIndex >= MaxHeatersPerTool)
+	{
+		return 0;
+	}
+	size_t removed = 0;
+	for (size_t i = heaterIndex; i < MaxHeatersPerTool && heaters[i] != nullptr; ++i)
+	{
+		delete heaters[i];
+		heaters[i] = nullptr;
+		++removed;
+	}
+	return removed;
+}
+
+void OM::Tool::UpdateTemp(const uint8_t toolHeaterIndex, const int32_t temp, const bool active)
+{
+	ToolHeater* toolHeater = GetOrCreateHeater(toolHeaterIndex);
+	if (toolHeater == nullptr)
+	{
+		return;
+	}
+	if (active)
+	{
+		toolHeater->activeTemp = temp;
+	}
+	else
+	{
+		toolHeater->standbyTemp = temp;
+	}
+}
+
+void OM::Tool::Reset()
+{
+	index = 0;
+	for (size_t i = 0; i < MaxHeatersPerTool; ++i)
+	{
+		heaters[i] = nullptr;
+	}
+	extruder = -1;
+	spindle = nullptr;
+	fan = -1;
+	for (size_t i = 0; i < MaxTotalAxes; ++i)
+	{
+		offsets[i] = 0.0f;
+	}
+	status = ToolStatus::off;
+	slot = MaxSlots;
+	slotPJog = MaxPendantTools;
+	slotPJob = MaxPendantTools;
+}
+
+void OM::BedOrChamber::Reset()
+{
+	index = 0;
+	heater = -1;
+	heaterStatus = HeaterStatus::off;
+	slot = MaxSlots;
+	slotPJog = MaxPendantTools;
+	slotPJob = MaxPendantTools;
+}
+
+namespace OM
+{
 	Axis* GetAxis(const size_t index)
 	{
 		if (index >= MaxTotalAxes)
@@ -131,15 +282,6 @@ namespace OM
 			return nullptr;
 		}
 		return GetOrCreate<AxisList, Axis>(axes, index, false);
-	}
-
-	Axis* GetAxisInSlot(const size_t slot)
-	{
-		if (slot >= MaxTotalAxes)
-		{
-			return nullptr;
-		}
-		return Find<AxisList, Axis>(axes, [slot](Axis* axis) { return axis->slot == slot; });
 	}
 
 	Axis* GetOrCreateAxis(const size_t index)
@@ -171,16 +313,6 @@ namespace OM
 		return GetOrCreate<SpindleList, Spindle>(spindles, index, true);
 	}
 
-	void IterateSpindles(stdext::inplace_function<void(Spindle*)> func, const size_t startAt)
-	{
-		Iterate(spindles, func, startAt);
-	}
-
-	bool IterateSpindlesWhile(stdext::inplace_function<bool(Spindle*)> func, const size_t startAt)
-	{
-		return IterateWhile(spindles, func, startAt);
-	}
-
 	Tool* GetTool(const size_t index)
 	{
 		return GetOrCreate<ToolList, Tool>(tools, index, false);
@@ -196,16 +328,6 @@ namespace OM
 		Iterate(tools, func, startAt);
 	}
 
-	bool IterateToolsWhile(stdext::inplace_function<bool(Tool*)> func, const size_t startAt)
-	{
-		return IterateWhile(tools, func, startAt);
-	}
-
-	Spindle* GetSpindleForTool(const size_t toolNumber)
-	{
-		return Find<SpindleList, Spindle>(spindles, [toolNumber](Spindle* spindle) { return spindle->tool == (int)toolNumber; });
-	}
-
 	Tool* GetToolForExtruder(const size_t extruder)
 	{
 		return Find<ToolList, Tool>(tools, [extruder](Tool* tool) { return tool->extruder == (int)extruder; });
@@ -214,11 +336,6 @@ namespace OM
 	Tool* GetToolForFan(const size_t fan)
 	{
 		return Find<ToolList, Tool>(tools, [fan](Tool* tool) { return tool->fan == (int)fan; });
-	}
-
-	Tool* GetToolForHeater(const size_t heater)
-	{
-		return Find<ToolList, Tool>(tools, [heater](Tool* tool) { return tool->heater == (int)heater; });
 	}
 
 	Bed* GetBed(const size_t index)
@@ -292,7 +409,7 @@ namespace OM
 		if (addBeds)
 		{
 			IterateBeds(
-				[&heaterSlots, heaterIndex, slotType](Bed* bed) {
+				[&heaterSlots, &heaterIndex, &slotType](Bed* bed) {
 					if (bed->heater == (int)heaterIndex)
 					{
 						switch (slotType)
@@ -317,7 +434,7 @@ namespace OM
 		if (addChambers)
 		{
 			IterateChambers(
-				[&heaterSlots, heaterIndex, slotType](Chamber* chamber) {
+				[&heaterSlots, &heaterIndex, &slotType](Chamber* chamber) {
 					if (chamber->heater == (int)heaterIndex)
 					{
 						switch (slotType)
@@ -342,25 +459,32 @@ namespace OM
 		if (addTools)
 		{
 			IterateTools(
-				[&heaterSlots, heaterIndex, slotType](Tool* tool) {
-					if (tool->heater == (int)heaterIndex)
+				[&heaterSlots, &heaterIndex, &slotType](Tool* tool) {
+					if (tool->slot < MaxSlots)
 					{
-						switch (slotType)
-						{
-						case SlotType::panel:
-							if (tool->slot < MaxSlots)
+						tool->IterateHeaters([&tool, &heaterSlots, &heaterIndex, &slotType](ToolHeater* th, size_t index) {
+							switch (slotType)
 							{
-								heaterSlots.Add(tool->slot);
+							case SlotType::panel:
+								{
+									const size_t subSlot = tool->slot + index;
+									if (subSlot < MaxSlots && th->heaterIndex == (int) heaterIndex)
+									{
+										heaterSlots.Add(subSlot);
+									}
+								}
+								break;
+							case SlotType::pJob:
+								{
+									const size_t subSlot = tool->slotPJob + index;
+									if (subSlot < MaxPendantTools && th->heaterIndex == (int) heaterIndex)
+									{
+										heaterSlots.Add(subSlot);
+									}
+								}
+								break;
 							}
-							break;
-						case SlotType::pJob:
-							if (tool->slotPJob < MaxPendantTools)
-							{
-								heaterSlots.Add(tool->slotPJob);
-							}
-							break;
-
-						}
+						});
 					}
 				});
 		}
@@ -391,6 +515,3 @@ namespace OM
 		return Remove<ChamberList, Chamber>(chambers, index, allFollowing);
 	}
 }
-
-
-

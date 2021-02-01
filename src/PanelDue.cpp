@@ -338,7 +338,7 @@ enum ReceivedDataEvent
 	rcvBoardsFirmwareName,
 
 	// Keys for fans response
-	rcvFansActualValue,
+	rcvFansRequestedValue,
 
 	// Keys for heat response
 	rcvHeatBedHeaters,
@@ -399,6 +399,7 @@ enum ReceivedDataEvent
 	rcvSpindlesActive,
 	rcvSpindlesCurrent,
 	rcvSpindlesMax,
+	rcvSpindlesMin,
 	rcvSpindlesTool,
 
 	// Keys from state response
@@ -429,8 +430,8 @@ enum ReceivedDataEvent
 
 struct FieldTableEntry
 {
-	ReceivedDataEvent rde;
-	const char* varName;
+	ReceivedDataEvent val;
+	const char* key;
 };
 
 // The following tables will be sorted once on startup so entries can be better grouped for code maintenance
@@ -444,7 +445,7 @@ static FieldTableEntry fieldTable[] =
 	{ rcvBoardsFirmwareName, 			"boards^:firmwareName" },
 
 	// M409 K"fans" response
-	{ rcvFansActualValue,				"fans^:actualValue" },
+	{ rcvFansRequestedValue,			"fans^:requestedValue" },
 
 	// M409 K"heat" response
 	{ rcvHeatBedHeaters,				"heat:bedHeaters^" },
@@ -505,6 +506,7 @@ static FieldTableEntry fieldTable[] =
 	{ rcvSpindlesActive, 				"spindles^:active" },
 	{ rcvSpindlesCurrent,				"spindles^:current" },
 	{ rcvSpindlesMax, 					"spindles^:max" },
+	{ rcvSpindlesMin, 					"spindles^:min" },
 	{ rcvSpindlesTool, 					"spindles^:tool" },
 
 	// M409 K"state" response
@@ -779,28 +781,10 @@ bool PrintInProgress()
 	return IsPrintingStatus(status);
 }
 
-// Search an ordered table for a matching string
-ReceivedDataEvent bsearch(const FieldTableEntry _ecv_array table[], size_t numElems, const char* key)
+template<typename T>
+int compare(const void* lp, const void* rp)
 {
-	size_t low = 0u, high = numElems;
-	while (high > low)
-	{
-		const size_t mid = (high - low)/2 + low;
-		const int t = strcasecmp(key, table[mid].varName);
-		if (t == 0)
-		{
-			return table[mid].rde;
-		}
-		if (t > 0)
-		{
-			low = mid + 1u;
-		}
-		else
-		{
-			high = mid;
-		}
-	}
-	return (low < numElems && strcasecmp(key, table[low].varName) == 0) ? table[low].rde : rcvUnknown;
+	return strcasecmp(((T*) lp)->key, ((T*) rp)->key);
 }
 
 // Return true if sending a command or file list request to the printer now is a good idea.
@@ -1143,10 +1127,7 @@ void SetStatus(const char * sts)
 						printerStatusMap,
 						ARRAY_SIZE(printerStatusMap),
 						sizeof(PrinterStatusMapEntry),
-						[](auto a, auto b)
-						{
-							return strcasecmp(((PrinterStatusMapEntry*) a)->key, ((PrinterStatusMapEntry*)b)->key);
-						});
+						compare<PrinterStatusMapEntry>);
 		if (statusFromMap != nullptr)
 		{
 			newStatus = statusFromMap->val;
@@ -1176,6 +1157,10 @@ void Reconnect()
 {
 	initialized = false;
 	SetStatus(nullptr);
+
+	seqs.Reset();
+	UI::LastJobFileNameAvailable(false);
+
 	// Send first round of data fetching again
 	SerialIo::Sendf("M409 F\"d99f\"\n");
 	// And set the last poll time to now
@@ -1541,14 +1526,28 @@ void ProcessReceivedValue(StringRef id, const char data[], const size_t indices[
 		}
 	}
 
-	const ReceivedDataEvent rde = bsearch(fieldTable, ARRAY_SIZE(fieldTable), id.c_str());
+	const FieldTableEntry key = {ReceivedDataEvent::rcvUnknown, id.c_str()};
+	const FieldTableEntry* searchResult = (FieldTableEntry*) bsearch(
+			&key,
+			fieldTable,
+			ARRAY_SIZE(fieldTable),
+			sizeof(FieldTableEntry),
+			compare<FieldTableEntry>);
+	const ReceivedDataEvent rde = searchResult->val;
 	switch (rde)
 	{
 	// M409 section
 	case rcvKey:
 		ShowLine;
 		{
-			currentResponseType = bsearch(keyResponseTypeTable, ARRAY_SIZE(keyResponseTypeTable), data);
+			const FieldTableEntry key = {ReceivedDataEvent::rcvUnknown, data};
+			const FieldTableEntry* searchResult = (FieldTableEntry*) bsearch(
+					&key,
+					keyResponseTypeTable,
+					ARRAY_SIZE(keyResponseTypeTable),
+					sizeof(FieldTableEntry),
+					compare<FieldTableEntry>);
+			currentResponseType = searchResult->val;
 			switch (currentResponseType) {
 			case rcvOMKeyHeat:
 				lastBed = -1;
@@ -1595,7 +1594,7 @@ void ProcessReceivedValue(StringRef id, const char data[], const size_t indices[
 		break;
 
 	// Fans section
-	case rcvFansActualValue:
+	case rcvFansRequestedValue:
 		ShowLine;
 		{
 			float f;
@@ -1684,10 +1683,7 @@ void ProcessReceivedValue(StringRef id, const char data[], const size_t indices[
 							heaterStatusMap,
 							ARRAY_SIZE(heaterStatusMap),
 							sizeof(HeaterStatusMapEntry),
-							[](auto a, auto b)
-							{
-								return strcasecmp(((HeaterStatusMapEntry*) a)->key, ((HeaterStatusMapEntry*)b)->key);
-							});
+							compare<HeaterStatusMapEntry>);
 			const HeaterStatus status = (statusFromMap != nullptr) ? statusFromMap->val : HeaterStatus::off;
 			UI::UpdateHeaterStatus(indices[0], status);
 		}
@@ -1953,6 +1949,7 @@ void ProcessReceivedValue(StringRef id, const char data[], const size_t indices[
 		break;
 
 	case rcvSpindlesMax:
+	case rcvSpindlesMin:
 		ShowLine;
 		// fans also has a field "result^:max"
 		if (currentResponseType != rcvOMKeySpindles)
@@ -1960,10 +1957,10 @@ void ProcessReceivedValue(StringRef id, const char data[], const size_t indices[
 			break;
 		}
 		{
-			uint32_t max;
-			if (GetUnsignedInteger(data, max))
+			uint32_t speedLimit;
+			if (GetUnsignedInteger(data, speedLimit))
 			{
-				UI::SetSpindleMax(indices[0], max);
+				UI::SetSpindleLimit(indices[0], speedLimit, rde == rcvSpindlesMax);
 			}
 		}
 		break;
@@ -2064,10 +2061,7 @@ void ProcessReceivedValue(StringRef id, const char data[], const size_t indices[
 				// Controller was restarted
 				if (uival < remoteUpTime)
 				{
-					seqs.Reset();
 					Reconnect();
-					UI::ResetBedsAndChambers();
-					UI::LastJobFileNameAvailable(false);
 				}
 				remoteUpTime = uival;
 			}
@@ -2079,14 +2073,14 @@ void ProcessReceivedValue(StringRef id, const char data[], const size_t indices[
 	case rcvToolsStandby:
 		ShowLine;
 		{
-			if (indices[1] > 0)
+			if (indices[1] >= MaxHeatersPerTool)
 			{
-				return;
+				break;
 			}
 			int32_t temp;
 			if (GetInteger(data, temp))
 			{
-				UI::UpdateToolTemp(indices[0], temp, rde == rcvToolsActive);
+				UI::UpdateToolTemp(indices[0], indices[1], temp, rde == rcvToolsActive);
 			}
 		}
 		break;
@@ -2096,7 +2090,7 @@ void ProcessReceivedValue(StringRef id, const char data[], const size_t indices[
 		{
 			if (indices[1] > 0)
 			{
-				return;
+				break;
 			}
 			int32_t extruder;
 			if (GetInteger(data, extruder))
@@ -2111,7 +2105,7 @@ void ProcessReceivedValue(StringRef id, const char data[], const size_t indices[
 		{
 			if (indices[1] > 0)
 			{
-				return;
+				break;
 			}
 			int32_t fan;
 			if (GetInteger(data, fan))
@@ -2124,14 +2118,14 @@ void ProcessReceivedValue(StringRef id, const char data[], const size_t indices[
 	case rcvToolsHeaters:
 		ShowLine;
 		{
-			if (indices[1] > 0)
+			if (indices[1] >= MaxHeatersPerTool)
 			{
-				return;
+				break;
 			}
-			int32_t heater;
-			if (GetInteger(data, heater))
+			int32_t heaterIndex;
+			if (GetInteger(data, heaterIndex))
 			{
-				UI::SetToolHeater(indices[0], heater);
+				UI::SetToolHeater(indices[0], indices[1], heaterIndex);
 			}
 		}
 		break;
@@ -2168,10 +2162,7 @@ void ProcessReceivedValue(StringRef id, const char data[], const size_t indices[
 							toolStatusMap,
 							ARRAY_SIZE(toolStatusMap),
 							sizeof(ToolStatusMapEntry),
-							[](auto a, auto b)
-							{
-								return strcasecmp(((ToolStatusMapEntry*) a)->key, ((ToolStatusMapEntry*)b)->key);
-							});
+							compare<ToolStatusMapEntry>);
 			const ToolStatus status = (statusFromMap != nullptr) ? statusFromMap->val : ToolStatus::off;
 			UI::UpdateToolStatus(indices[0], status);
 		}
@@ -2341,10 +2332,7 @@ void ProcessReceivedValue(StringRef id, const char data[], const size_t indices[
 							controlCommandMap,
 							ARRAY_SIZE(controlCommandMap),
 							sizeof(ControlCommandMapEntry),
-							[](auto a, auto b)
-							{
-								return strcasecmp(((ControlCommandMapEntry*) a)->key, ((ControlCommandMapEntry*)b)->key);
-							});
+							compare<ControlCommandMapEntry>);
 			const ControlCommand controlCommand = (controlCommandFromMap != nullptr) ? controlCommandFromMap->val : ControlCommand::invalid;
 			switch (controlCommand)
 			{
@@ -2372,58 +2360,83 @@ void ProcessArrayEnd(const char id[], const size_t indices[])
 {
 	if (indices[0] == 0 && strcmp(id, "files^") == 0)
 	{
+		ShowLine;
 		FileManager::BeginReceivingFiles();				// received an empty file list - need to tell the file manager about it
 	}
 	else if (currentResponseType == rcvOMKeyHeat)
 	{
 		if (strcasecmp(id, "heat:bedHeaters^") == 0)
 		{
+			ShowLine;
 			OM::RemoveBed(lastBed + 1, true);
-			UI::AllToolsSeen();
+			if (initialized)
+			{
+				UI::AllToolsSeen();
+			}
 		}
 		else if (strcasecmp(id, "heat:chamberHeaters^") == 0)
 		{
+			ShowLine;
 			OM::RemoveChamber(lastChamber + 1, true);
-			UI::AllToolsSeen();
+			if (initialized)
+			{
+				UI::AllToolsSeen();
+			}
 		}
 	}
 	else if (currentResponseType == rcvOMKeyMove && strcasecmp(id, "move:axes^") == 0)
 	{
+		ShowLine;
 		OM::RemoveAxis(indices[0], true);
-		numAxes = constrain<unsigned int>(visibleAxesCounted, MIN_AXES, MaxTotalAxes);
+		numAxes = constrain<unsigned int>(visibleAxesCounted, MIN_AXES, MaxDisplayableAxes);
 		UI::UpdateGeometry(numAxes, isDelta);
 	}
 	else if (currentResponseType == rcvOMKeySpindles)
 	{
 		if (strcasecmp(id, "spindles^") == 0)
 		{
+			ShowLine;
 			OM::RemoveSpindle(lastSpindle + 1, true);
-			UI::AllToolsSeen();
+			if (initialized)
+			{
+				UI::AllToolsSeen();
+			}
 		}
 	}
 	else if (currentResponseType == rcvOMKeyTools)
 	{
 		if (strcasecmp(id, "tools^") == 0)
 		{
+			ShowLine;
 			OM::RemoveTool(lastTool + 1, true);
-			UI::AllToolsSeen();
+			if (initialized)
+			{
+				UI::AllToolsSeen();
+			}
 		}
 		else if (strcasecmp(id, "tools^:extruders^") == 0 && indices[1] == 0)
 		{
+			ShowLine;
 			UI::SetToolExtruder(indices[0], -1);			// No extruder defined for this tool
 		}
-		else if (strcasecmp(id, "tools^:heaters^") == 0 && indices[1] == 0)
+		else if (strcasecmp(id, "tools^:heaters^") == 0)
 		{
-			UI::SetToolHeater(indices[0], -1);				// No heater defined for this tool
+			ShowLine;
+			// Remove all heaters no longer defined
+			if (UI::RemoveToolHeaters(indices[0], indices[1]) && initialized)
+			{
+				UI::AllToolsSeen();
+			}
 		}
 	}
 	else if (currentResponseType == rcvOMKeyVolumes && strcasecmp(id, "volumes^") == 0)
 	{
+		ShowLine;
 		FileManager::SetNumVolumes(mountedVolumesCounted);
 	}
 }
 
-void ParserErrorEncountered()
+void ParserErrorEncountered(const char*, const char*, const size_t[])	// For now we don't use the parameters
 {
 	MessageLog::AppendMessage("Error parsing response");
 	// TODO: Handle parser errors
@@ -2561,7 +2574,7 @@ int main(void)
 			sizeof(FieldTableEntry),
 			[](const void* a, const void* b)
 			{
-				return strcasecmp(((FieldTableEntry*) a)->varName, ((FieldTableEntry*) b)->varName);
+				return strcasecmp(((FieldTableEntry*) a)->key, ((FieldTableEntry*) b)->key);
 			});
 
 	seqs.Reset();
@@ -2612,6 +2625,10 @@ int main(void)
 							TouchBeep();		// give audible feedback of the touch, unless adjusting the volume
 						}
 						UI::ProcessTouch(bp);
+						if (!initialized)		// Last button press was E-Stop
+						{
+							continue;
+						}
 					}
 					else
 					{
@@ -2677,7 +2694,11 @@ int main(void)
 				}
 				else {
 					// Once we get here the first time we will have work all seqs once
-					initialized = true;
+					if (!initialized)
+					{
+						UI::AllToolsSeen();
+						initialized = true;
+					}
 
 					// First check for specific info we need to fetch
 					bool done = FileManager::ProcessTimers();

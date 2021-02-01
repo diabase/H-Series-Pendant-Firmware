@@ -9,9 +9,11 @@
 #define SRC_OBJECTMODEL_HPP_
 
 #include <cstdint>
+#include "HeaterStatus.hpp"
 #include "ToolStatus.hpp"
 #include "UserInterfaceConstants.hpp"
 #include <General/FreelistManager.h>
+#include <General/StringRef.h>
 #include <General/Vector.hpp>
 #include <General/inplace_function.h>
 
@@ -54,21 +56,7 @@ namespace OM {
 			slot : 6,
 			slotP : 6;
 
-		void Reset()
-		{
-			index = 0;
-			babystep = 0.0f;
-			letter[0] = 0;
-			letter[1] = 0;
-			for (size_t i = 0; i < MaxTotalWorkplaces; ++i)
-			{
-				workplaceOffsets[i] = 0.0f;
-			}
-			homed = false;
-			visible = false;
-			slot = MaxSlots;
-			slotP = MaxPendantTools;
-		}
+		void Reset();
 	};
 
 	struct Spindle
@@ -80,29 +68,34 @@ namespace OM {
 		uint8_t index;
 		uint16_t active;
 		uint16_t max;
+		uint16_t min;
 		int8_t tool;
 
-		void Reset()
-		{
-			index = 0;
-			active = 0;
-			max = 0;
-			tool = -1;
-		}
+		void Reset();
+	};
+
+	struct ToolHeater
+	{
+		void* operator new(size_t sz) noexcept { UNUSED(sz); return FreelistManager::Allocate<ToolHeater>(); }
+		void operator delete(void* p) noexcept { FreelistManager::Release<ToolHeater>(p); }
+
+		uint8_t heaterIndex;	// This is the heater number
+		int16_t activeTemp;
+		int16_t standbyTemp;
+
+		void Reset();
 	};
 
 	struct Tool
 	{
 		void* operator new(size_t sz) noexcept { UNUSED(sz); return FreelistManager::Allocate<Tool>(); }
-		void operator delete(void* p) noexcept { FreelistManager::Release<Tool>(p); }
+		void operator delete(void* p) noexcept;
 
 		// tool number
 		uint8_t index;
-		int8_t heater;				// only look at the first heater as we only display one
-		int16_t activeTemp;
-		int16_t standbyTemp;
+		ToolHeater* heaters[MaxHeatersPerTool];
 		int8_t extruder;			// only look at the first extruder as we only display one
-		Spindle* spindle;		// only look at the first spindle as we only display one
+		Spindle* spindle;			// only look at the first spindle as we only display one
 		int8_t fan;
 		float offsets[MaxTotalAxes];
 		Tool* next = nullptr;
@@ -111,24 +104,14 @@ namespace OM {
 		uint8_t slotPJog;
 		uint8_t slotPJob;
 
-		void Reset()
-		{
-			index = 0;
-			heater = -1;				// only look at the first heater as we only display one
-			activeTemp = 0;
-			standbyTemp = 0;
-			extruder = -1;			// only look at the first extruder as we only display one
-			spindle = nullptr;		// only look at the first spindle as we only display one
-			fan = -1;
-			for (size_t i = 0; i < MaxTotalAxes; ++i)
-			{
-				offsets[i] = 0.0f;
-			}
-			status = ToolStatus::off;
-			slot = MaxSlots;
-			slotPJog = MaxPendantTools;
-			slotPJob = MaxPendantTools;
-		}
+		ToolHeater* GetOrCreateHeater(const uint8_t toolHeaterIndex);
+		bool GetHeaterTemps(const StringRef& ref, const bool active);
+		int8_t HasHeater(const uint8_t heaterIndex) const;
+		void IterateHeaters(stdext::inplace_function<void(ToolHeater*, size_t)> func, const size_t startAt = 0);
+		size_t RemoveHeatersFrom(const uint8_t toolHeaterIndex);
+		void UpdateTemp(const uint8_t toolHeaterIndex, const int32_t temp, const bool active);
+
+		void Reset();
 	};
 
 	struct BedOrChamber
@@ -142,47 +125,36 @@ namespace OM {
 		int8_t heater;
 		// Slot for display on panel
 		uint8_t slot;
+
+		HeaterStatus heaterStatus;
+
 		uint8_t slotPJog;
 		uint8_t slotPJob;
 
-		void Reset()
-		{
-			index = 0;
-			heater = -1;
-			slot = MaxSlots;
-			slotPJog = MaxPendantTools;
-			slotPJob = MaxPendantTools;
-		}
+		void Reset();
 	};
 
 	typedef BedOrChamber Bed;
 	typedef BedOrChamber Chamber;
 
-	typedef void (*AxisIterator)(Axis*);
-	typedef bool (*AxisIteratorWhile)(Axis*);
-
 	typedef Vector<uint8_t, MaxSlots> HeaterSlots;
 
-	Axis* FindAxis(stdext::inplace_function<bool(Axis*)> filter);
 	Axis* GetAxis(const size_t index);
-	Axis* GetAxisInSlot(const size_t slot);
 	Axis* GetOrCreateAxis(const size_t index);
 	void IterateAxes(stdext::inplace_function<void(Axis*)> func, const size_t startAt = 0);
 	bool IterateAxesWhile(stdext::inplace_function<bool(Axis*)> func, const size_t startAt = 0);
+	size_t RemoveAxis(const size_t index, const bool allFollowing);
 
 	Spindle* GetSpindle(const size_t index);
 	Spindle* GetOrCreateSpindle(const size_t index);
-	Spindle* GetSpindleForTool(const size_t toolNumber);
-	void IterateSpindles(stdext::inplace_function<void(Spindle*)> func, const size_t startAt = 0);
-	bool IterateSpindlesWhile(stdext::inplace_function<bool(Spindle*)> func, const size_t startAt = 0);
+	size_t RemoveSpindle(const size_t index, const bool allFollowing);
 
 	Tool* GetTool(const size_t index);
 	Tool* GetOrCreateTool(const size_t index);
 	Tool* GetToolForExtruder(const size_t extruder);
 	Tool* GetToolForFan(const size_t fan);
-	Tool* GetToolForHeater(const size_t heater);
 	void IterateTools(stdext::inplace_function<void(Tool*)> func, const size_t startAt = 0);
-	bool IterateToolsWhile(stdext::inplace_function<bool(Tool*)> func, const size_t startAt = 0);
+	size_t RemoveTool(const size_t index, const bool allFollowing);
 
 	Bed* GetBed(const size_t index);
 	Bed* GetOrCreateBed(const size_t index);
@@ -190,6 +162,7 @@ namespace OM {
 	Bed* GetBedForHeater(const size_t heater);
 	size_t GetBedCount();
 	void IterateBeds(stdext::inplace_function<void(Bed*)> func, const size_t startAt = 0);
+	size_t RemoveBed(const size_t index, const bool allFollowing);
 
 	Chamber* GetChamber(const size_t index);
 	Chamber* GetOrCreateChamber(const size_t index);
@@ -197,6 +170,7 @@ namespace OM {
 	Chamber* GetChamberForHeater(const size_t heater);
 	size_t GetChamberCount();
 	void IterateChambers(stdext::inplace_function<void(Chamber*)> func, const size_t startAt = 0);
+	size_t RemoveChamber(const size_t index, const bool allFollowing);
 
 	void GetHeaterSlots(
 			const size_t heaterIndex,
@@ -205,12 +179,6 @@ namespace OM {
 			const bool addTools = true,
 			const bool addBeds = true,
 			const bool addChambers = true);
-
-	size_t RemoveAxis(const size_t index, const bool allFollowing);
-	size_t RemoveSpindle(const size_t index, const bool allFollowing);
-	size_t RemoveTool(const size_t index, const bool allFollowing);
-	size_t RemoveBed(const size_t index, const bool allFollowing);
-	size_t RemoveChamber(const size_t index, const bool allFollowing);
 }
 
 
