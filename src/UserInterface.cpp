@@ -73,7 +73,7 @@ static DisplayField *emptyRoot, *baseRoot, *commonRoot, *controlRoot, *printRoot
 		*pendantBaseRoot, *pendantJogRoot, *pendantOffsetRoot, *pendantJobRoot;
 static SingleButton *homeAllButton, *bedCompButton;
 static IconButtonWithText *homeButtons[MaxDisplayableAxes], *toolButtons[MaxSlots];
-static SingleButton *pHomeAllButton, *pHomeButtons[MaxTotalAxes], *measureZButton;
+static SingleButton *homeAllButtonP, *homeButtonsP[MaxTotalAxes], *measureZButton;
 static FloatField *controlTabAxisPos[MaxDisplayableAxes];
 static FloatField *printTabAxisPos[MaxDisplayableAxes];
 static FloatField *movePopupAxisPos[MaxDisplayableAxes];
@@ -89,16 +89,16 @@ static TextButtonWithLabel *babystepMinusButton, *babystepPlusButton;
 static IntegerField *fpSizeField, *fpFilamentField, *filePopupTitleField;
 static ProgressBar *printProgressBar, *printProgressBarP;
 static SingleButton *tabControl, *tabPrint, *tabMsg, *tabSetup, *tabPendant, *tabJog, *tabOffset, *tabJob;
-static ButtonBase *pResumeButton, *pPauseButton, *pResetButton;
+static ButtonBase *resumeButtonP, *pauseButtonP, *resetButtonP;
 static StaticTextField *jobTextField;
-static IntegerButton *pFeedrateButton, *pExtruderPercentButton, *pSpindleRPMButton;
+static IntegerButton *feedrateButtonP, *extruderPercentButtonP, *spindleRPMButtonP;
 static ButtonBase *filesButton, *pauseButton, *resumeButton, *cancelButton, *babystepButton, *reprintButton;
 static TextField *timeLeftField, *zProbe;
 static TextField *fpNameField, *fpGeneratedByField, *fpLastModifiedField, *fpPrintTimeField;
 static StaticTextField *moveAxisRows[MaxDisplayableAxes];
 static StaticTextField *nameField, *statusField;
 static StaticTextField *screensaverText, *screensaverTextP;
-static StaticTextField *pNameField, *pStatusField;
+static StaticTextField *nameFieldP, *statusFieldP;
 static IntegerButton *activeTemps[MaxSlots], *standbyTemps[MaxSlots];
 static IntegerButton *activeTempPJog, *standbyTempPJog;
 static IntegerButton *activeTempsPJob[MaxPendantTools], *standbyTempsPJob[MaxPendantTools];
@@ -1535,8 +1535,8 @@ void CreateCommonPendantFields(const ColourScheme &colours) {
 	// Add title bar
 	DisplayField::SetDefaultColours(colours.titleBarTextColour, colours.titleBarBackColour);
 	const PixelNumber width = CalcWidth(3, DisplayXP) + (2*margin);
-	mgr.AddField(pNameField   = new StaticTextField(row1P, 0, width, TextAlignment::Left, machineName.c_str()));
-	mgr.AddField(pStatusField = new StaticTextField(row1P, width, width, TextAlignment::Right, nullptr));
+	mgr.AddField(nameFieldP   = new StaticTextField(row1P, 0, width, TextAlignment::Left, machineName.c_str()));
+	mgr.AddField(statusFieldP = new StaticTextField(row1P, width, width, TextAlignment::Right, nullptr));
 
 	// Add the emergency stop button
 	DisplayField::SetDefaultColours(colours.stopButtonTextColour, colours.stopButtonBackColour);
@@ -1628,10 +1628,10 @@ void CreatePendantJogTabFields(const ColourScheme& colours) {
 
 	// Homing buttons
 	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.notHomedButtonBackColour);
-	pHomeAllButton  = AddIconButton(secondBlock + 1 * rowHeightP, homingCol, 3, IconHomeAll,			evSendCommand,	"G28", DisplayXP);
-	pHomeButtons[0] = AddIconButtonWithText(secondBlock + 2 * rowHeightP, homingCol, 3, IconHomeAll,	evHomeAxis, axisNames[0], axisNames[0], DisplayXP);
-	pHomeButtons[1] = AddIconButtonWithText(secondBlock + 3 * rowHeightP, homingCol, 3, IconHomeAll,	evHomeAxis, axisNames[1], axisNames[1], DisplayXP);
-	pHomeButtons[2] = AddIconButtonWithText(secondBlock + 4 * rowHeightP, homingCol, 3, IconHomeAll,	evHomeAxis, axisNames[2], axisNames[2], DisplayXP);
+	homeAllButtonP  = AddIconButton(secondBlock + 1 * rowHeightP, homingCol, 3, IconHomeAll,			evSendCommand,	"G28", DisplayXP);
+	homeButtonsP[0] = AddIconButtonWithText(secondBlock + 2 * rowHeightP, homingCol, 3, IconHomeAll,	evHomeAxis, axisNames[0], axisNames[0], DisplayXP);
+	homeButtonsP[1] = AddIconButtonWithText(secondBlock + 3 * rowHeightP, homingCol, 3, IconHomeAll,	evHomeAxis, axisNames[1], axisNames[1], DisplayXP);
+	homeButtonsP[2] = AddIconButtonWithText(secondBlock + 4 * rowHeightP, homingCol, 3, IconHomeAll,	evHomeAxis, axisNames[2], axisNames[2], DisplayXP);
 	measureZButton  = AddTextButton(secondBlock + 5 * rowHeightP, homingCol, 3, strings->measureZ,  evMeasureZ, 	"M98 P\"measureZ.g\"", DisplayXP);
 	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonTextBackColour);
 	                  AddTextButton(secondBlock + 6 * rowHeightP, homingCol, 3, strings->macro,     evListMacros,    nullptr, DisplayXP);
@@ -1720,11 +1720,11 @@ void CreatePendantJobTabFields(const ColourScheme& colours) {
 
 
 	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.pauseButtonBackColour);
-	pPauseButton = AddTextButton(row3P, 0, 1, strings->pause, evPausePrint, "M25", DisplayXP);
+	pauseButtonP = AddTextButton(row3P, 0, 1, strings->pause, evPausePrint, "M25", DisplayXP);
 	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.resumeButtonBackColour);
-	pResumeButton = AddTextButton(row3P, 0, 2, strings->resume, evResumePrint, "M24", DisplayXP);
+	resumeButtonP = AddTextButton(row3P, 0, 2, strings->resume, evResumePrint, "M24", DisplayXP);
 	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.resetButtonBackColour);
-	pResetButton = AddTextButton(row3P, 1, 2, strings->cancel, evReset, "M0", DisplayXP);
+	resetButtonP = AddTextButton(row3P, 1, 2, strings->cancel, evReset, "M0", DisplayXP);
 
 	DisplayField::SetDefaultColours(colours.progressBarColour, colours.progressBarBackColour);
 	mgr.AddField(printProgressBarP = new ProgressBar(row4P + (rowHeightP - progressBarHeight)/2, margin, progressBarHeight, DisplayXP - 2 * margin));
@@ -1744,15 +1744,15 @@ void CreatePendantJobTabFields(const ColourScheme& colours) {
 
 	DisplayField::SetDefaultColours(colours.buttonTextColour, colours.buttonTextBackColour);
 	// Speed button
-	pFeedrateButton = AddIntegerButton(row6P, 0, 2, strings->speed, "%", evAdjustSpeed, DisplayXP);
-	pFeedrateButton->SetValue(100);
-	pFeedrateButton->SetEvent(evAdjustSpeed, "M220 S");
-	pExtruderPercentButton = AddIntegerButton(row6P, 1, 2, strings->extruderShort, "%", evPAdjustExtrusionPercent, DisplayXP);
-	pExtruderPercentButton->SetValue(100);
-	pExtruderPercentButton->SetEvent(evPAdjustExtrusionPercent, "M221 S");
+	feedrateButtonP = AddIntegerButton(row6P, 0, 2, strings->speed, "%", evAdjustSpeed, DisplayXP);
+	feedrateButtonP->SetValue(100);
+	feedrateButtonP->SetEvent(evAdjustSpeed, "M220 S");
+	extruderPercentButtonP = AddIntegerButton(row6P, 1, 2, strings->extruderShort, "%", evPAdjustExtrusionPercent, DisplayXP);
+	extruderPercentButtonP->SetValue(100);
+	extruderPercentButtonP->SetEvent(evPAdjustExtrusionPercent, "M221 S");
 
-	pSpindleRPMButton = AddIntegerButton(row7P, 0, 1, strings->spindleRPM, nullptr, evAdjustActiveRPM, DisplayXP);
-	pSpindleRPMButton->SetValue(0);
+	spindleRPMButtonP = AddIntegerButton(row7P, 0, 1, strings->spindleRPM, nullptr, evAdjustActiveRPM, DisplayXP);
+	spindleRPMButtonP->SetValue(0);
 
 	// Heating control
 	DisplayField::SetDefaultColours(colours.titleBarTextColour, colours.titleBarBackColour);
@@ -1964,50 +1964,66 @@ namespace UI
 #endif
 	}
 
+	// This is called when no job is active/paused
 	void ShowFilesButton()
 	{
 		// First hide everything removed then show everything new
 		// otherwise remnants of the to-be-hidden might remain
-		mgr.Show(resumeButton, false);
-		mgr.Show(pResumeButton, false);
-		mgr.Show(cancelButton, false);
-		mgr.Show(pResetButton, false);
-		mgr.Show(pauseButton, false);
-		mgr.Show(pPauseButton, false);
-		mgr.Show(babystepButton, false);
-		mgr.Show(reprintButton, lastJobFileNameAvailable);
-		mgr.Show(filesButton, true);
+		mgr.Show(resumeButton,		false);
+		mgr.Show(cancelButton,		false);
+		mgr.Show(pauseButton,		false);
+		mgr.Show(babystepButton,	false);
+		mgr.Show(printProgressBar,	false);
+
+		mgr.Show(resumeButtonP,		false);
+		mgr.Show(resetButtonP,		false);
+		mgr.Show(pauseButtonP,		false);
+		mgr.Show(printProgressBarP,	false);
+
+		mgr.Show(reprintButton,		lastJobFileNameAvailable);
+		mgr.Show(filesButton,		true);
 	}
 
+	// This is called when a job is active
 	void ShowPauseButton()
 	{
 		// First hide everything removed then show everything new
 		// otherwise remnants of the to-be-hidden might remain
-		mgr.Show(resumeButton, false);
-		mgr.Show(pResumeButton, false);
-		mgr.Show(cancelButton, false);
-		mgr.Show(pResetButton, false);
-		mgr.Show(filesButton, false);
-		mgr.Show(reprintButton, false);
-		mgr.Show(pauseButton, true);
-		mgr.Show(pPauseButton, true);
-		mgr.Show(babystepButton, true);
+		mgr.Show(resumeButton,		false);
+		mgr.Show(cancelButton,		false);
+		mgr.Show(filesButton,		false);
+		mgr.Show(reprintButton,		false);
+
+		mgr.Show(resumeButtonP,		false);
+		mgr.Show(resetButtonP,		false);
+
+		mgr.Show(pauseButton,		true);
+		mgr.Show(babystepButton,	true);
+		mgr.Show(printProgressBar,	true);
+
+		mgr.Show(pauseButtonP,		true);
+		mgr.Show(printProgressBarP,	true);
 	}
 
+	// This is called when a job is paused
 	void ShowResumeAndCancelButtons()
 	{
 		// First hide everything removed then show everything new
 		// otherwise remnants of the to-be-hidden might remain
-		mgr.Show(pauseButton, false);
-		mgr.Show(pPauseButton, false);
-		mgr.Show(babystepButton, false);
-		mgr.Show(filesButton, false);
-		mgr.Show(reprintButton, false);
-		mgr.Show(reprintButton, false);
-		mgr.Show(resumeButton, true);
-		mgr.Show(pResumeButton, true);
-		mgr.Show(cancelButton, true);
-		mgr.Show(pResetButton, true);
+		mgr.Show(pauseButton,		false);
+		mgr.Show(babystepButton,	false);
+		mgr.Show(filesButton,		false);
+		mgr.Show(reprintButton,		false);
+
+		mgr.Show(pauseButtonP,		false);
+
+		mgr.Show(resumeButton,		true);
+		mgr.Show(cancelButton,		true);
+		mgr.Show(printProgressBar,	true);
+
+		mgr.Show(resumeButtonP,		true);
+		mgr.Show(resetButtonP,		true);
+		mgr.Show(printProgressBarP,	true);
 	}
 
 	// Show or hide an axis on the move button grid and on the axis display
@@ -2195,11 +2211,11 @@ namespace UI
 			mgr.Show(currentTempPJog, false);
 			mgr.Show(activeTempPJog, false);
 			mgr.Show(standbyTempPJog, false);
-			mgr.Show(pExtruderPercentButton, false);
-			mgr.Show(pSpindleRPMButton, false);
+			mgr.Show(extruderPercentButtonP, false);
+			mgr.Show(spindleRPMButtonP, false);
 			UpdateField(activeTempPJog, 0);
 			UpdateField(standbyTempPJog, 0);
-			UpdateField(pSpindleRPMButton, 0);
+			UpdateField(spindleRPMButtonP, 0);
 		}
 		else
 		{
@@ -2212,8 +2228,8 @@ namespace UI
 				mgr.Show(currentTempPJog, hasHeater || hasSpindle);
 				mgr.Show(activeTempPJog, hasHeater || hasSpindle);
 				mgr.Show(standbyTempPJog, hasHeater);
-				mgr.Show(pExtruderPercentButton, hasExtruder);
-				mgr.Show(pSpindleRPMButton, hasSpindle);
+				mgr.Show(extruderPercentButtonP, hasExtruder);
+				mgr.Show(spindleRPMButtonP, hasSpindle);
 				standbyTempPJog->SetEvent(standbyTempPJog->GetEvent(), tool->index);
 
 				// We rarely see updates of this value so update it here
@@ -2221,11 +2237,11 @@ namespace UI
 				{
 					UpdateField(activeTempPJog, tool->spindle->active);
 					activeTempPJog->SetEvent(evAdjustActiveRPM, tool->spindle->index);
-					pSpindleRPMButton->SetEvent(evAdjustActiveRPM, tool->spindle->index);
+					spindleRPMButtonP->SetEvent(evAdjustActiveRPM, tool->spindle->index);
 				}
 				else
 				{
-					UpdateField(pSpindleRPMButton, 0);
+					UpdateField(spindleRPMButtonP, 0);
 					activeTempPJog->SetEvent(evAdjustToolActiveTemp, tool->index);
 				}
 			}
@@ -2688,10 +2704,6 @@ namespace UI
 			ShowFilesButton();
 		}
 
-		mgr.Show(printProgressBar, PrintInProgress());
-		mgr.Show(printProgressBarP, PrintInProgress());
-	//	mgr.Show(printingField, PrintInProgress());
-
 		// Don't enable the time left field when we start printing, instead this will get enabled when we receive a suitable message
 		if (!PrintInProgress())
 		{
@@ -2700,7 +2712,7 @@ namespace UI
 
 		const unsigned int stat = (unsigned int)GetStatus();
 		statusField->SetValue((stat < NumStatusStrings) ? strings->statusValues[stat] : "unknown status");
-		pStatusField->SetValue((stat < NumStatusStrings) ? strings->statusValues[stat] : "unknown status");
+		statusFieldP->SetValue((stat < NumStatusStrings) ? strings->statusValues[stat] : "unknown status");
 	}
 
 	// Set the percentage of print completed
@@ -2791,7 +2803,7 @@ namespace UI
 		{
 			allAxesHomed = allHomed;
 			homeAllButton->SetColours(colours->buttonTextColour, (allAxesHomed) ? colours->homedButtonBackColour : colours->notHomedButtonBackColour);
-			pHomeAllButton->SetColours(colours->buttonTextColour, (allAxesHomed) ? colours->homedButtonBackColour : colours->notHomedButtonBackColour);
+			homeAllButtonP->SetColours(colours->buttonTextColour, (allAxesHomed) ? colours->homedButtonBackColour : colours->notHomedButtonBackColour);
 		}
 	}
 
@@ -2812,7 +2824,7 @@ namespace UI
 		}
 		if (slotP < MaxDisplayableAxesP)
 		{
-			pHomeButtons[slotP]->SetColours(colours->buttonTextColour, (isHomed) ? colours->homedButtonBackColour : colours->notHomedButtonBackColour);
+			homeButtonsP[slotP]->SetColours(colours->buttonTextColour, (isHomed) ? colours->homedButtonBackColour : colours->notHomedButtonBackColour);
 		}
 
 		UpdateAllHomed();
@@ -2830,7 +2842,7 @@ namespace UI
 	{
 		machineName.copy(data);
 		nameField->SetChanged();
-		pNameField->SetChanged();
+		nameFieldP->SetChanged();
 	}
 
 	// Update the IP address fiels on Setup tab
@@ -2929,7 +2941,7 @@ namespace UI
 			}
 			if (tool->index == currentTool)
 			{
-				UpdateField(pExtruderPercentButton, ival);
+				UpdateField(extruderPercentButtonP, ival);
 			}
 		}
 	}
@@ -2938,7 +2950,7 @@ namespace UI
 	void UpdateSpeedPercent(int ival)
 	{
 		UpdateField(spd, ival);
-		UpdateField(pFeedrateButton, ival);
+		UpdateField(feedrateButtonP, ival);
 	}
 
 	// Process a new message box alert, clearing any existing one
@@ -4678,7 +4690,7 @@ namespace UI
 				if (tool->index == currentTool)
 				{
 					currentTempPJog->SetValue(current);
-					UpdateField(pSpindleRPMButton, current);
+					UpdateField(spindleRPMButtonP, current);
 				}
 			}
 		}
