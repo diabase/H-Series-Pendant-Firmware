@@ -3595,7 +3595,7 @@ namespace UI
 					mgr.Press(bp, true);
 					currentWCSPress = bp;
 					currentButton.Clear();						// stop it being released by the timer
-					uint8_t wcsNumber = bp.GetSParam()[0] - 49;
+					const uint8_t wcsNumber = bp.GetSParam()[0] - 49;
 					UpdateWCSOffsetsPopupPositions(wcsNumber);
 					activateWCSButton->SetEvent(activateWCSButton->GetEvent(), wcsNumber);
 					mgr.Show(activateWCSButton, wcsNumber != currentWorkplaceNumber);
@@ -3638,7 +3638,7 @@ namespace UI
 
 			case evSetAxesOffsetToCurrent:
 				{
-					SerialIo::Sendf("G10 L20 P%s %s\n", currentWCSPress.GetSParam(), bp.GetSParam()[0]);
+					SerialIo::Sendf("G10 L20 P%s %c\n", currentWCSPress.GetSParam(), bp.GetSParam()[0]);
 				}
 				break;
 
