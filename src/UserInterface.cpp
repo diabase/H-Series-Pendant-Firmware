@@ -2137,7 +2137,7 @@ namespace UI
 		}
 
 		auto tool = OM::GetTool(currentTool);
-		if (tool != nullptr && tool->HasHeater(heaterIndex))
+		if (tool != nullptr && tool->HasHeater(heaterIndex) > -1)
 		{
 			currentTempPJog->SetValue(fval);
 		}
@@ -2191,7 +2191,7 @@ namespace UI
 			}
 		}
 		auto tool = OM::GetTool(currentTool);
-		if (tool != nullptr && tool->HasHeater(heaterIndex))
+		if (tool != nullptr && tool->HasHeater(heaterIndex) > -1)
 		{
 			currentTempPJog->SetColours(foregroundColour, backgroundColour);
 		}
@@ -2911,7 +2911,7 @@ namespace UI
 		}
 
 		auto tool = OM::GetTool(currentTool);
-		if (tool != nullptr && tool->HasHeater(heaterIndex))
+		if (tool != nullptr && tool->HasHeater(heaterIndex) > -1)
 		{
 			UpdateField(fieldPJog, ival);
 		}
