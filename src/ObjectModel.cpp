@@ -6,6 +6,7 @@
  */
 
 #include "ObjectModel.hpp"
+#include "PanelDue.hpp"
 
 typedef Vector<OM::Axis*, MaxTotalAxes> AxisList;
 typedef Vector<OM::Spindle*, MaxSlots> SpindleList;
@@ -328,16 +329,6 @@ namespace OM
 		Iterate(tools, func, startAt);
 	}
 
-	Tool* GetToolForExtruder(const size_t extruder)
-	{
-		return Find<ToolList, Tool>(tools, [extruder](Tool* tool) { return tool->extruder == (int)extruder; });
-	}
-
-	Tool* GetToolForFan(const size_t fan)
-	{
-		return Find<ToolList, Tool>(tools, [fan](Tool* tool) { return tool->fan == (int)fan; });
-	}
-
 	Bed* GetBed(const size_t index)
 	{
 		return GetOrCreate<BedList, Bed>(beds, index, false);
@@ -351,11 +342,6 @@ namespace OM
 	Bed* GetFirstBed()
 	{
 		return Find<BedList, Bed>(beds, [](Bed* bed) { return bed->heater > -1; });
-	}
-
-	Bed* GetBedForHeater(const size_t heater)
-	{
-		return Find<BedList, Bed>(beds, [heater](Bed* bed) { return bed->heater == (int)heater; });
 	}
 
 	size_t GetBedCount()
@@ -383,11 +369,6 @@ namespace OM
 		return Find<ChamberList, Chamber>(chambers, [](Chamber* chamber) { return chamber->heater > -1; });
 	}
 
-	Chamber* GetChamberForHeater(const size_t heater)
-	{
-		return Find<ChamberList, Chamber>(chambers, [heater](Chamber* chamber) { return chamber->heater == (int)heater; });
-	}
-
 	size_t GetChamberCount()
 	{
 		return chambers.Size();
@@ -400,7 +381,7 @@ namespace OM
 
 	void GetHeaterSlots(
 			const size_t heaterIndex,
-			HeaterSlots& heaterSlots,
+			Slots& slots,
 			const SlotType slotType,
 			const bool addTools,
 			const bool addBeds,
@@ -409,7 +390,7 @@ namespace OM
 		if (addBeds)
 		{
 			IterateBeds(
-				[&heaterSlots, &heaterIndex, &slotType](Bed* bed) {
+				[&slots, &heaterIndex, &slotType](Bed* bed) {
 					if (bed->heater == (int)heaterIndex)
 					{
 						switch (slotType)
@@ -417,13 +398,13 @@ namespace OM
 						case SlotType::panel:
 							if (bed->slot < MaxSlots)
 							{
-								heaterSlots.Add(bed->slot);
+								slots.Add(bed->slot);
 							}
 							break;
 						case SlotType::pJob:
 							if (bed->slotPJob < MaxPendantTools)
 							{
-								heaterSlots.Add(bed->slotPJob);
+								slots.Add(bed->slotPJob);
 							}
 							break;
 
@@ -434,7 +415,7 @@ namespace OM
 		if (addChambers)
 		{
 			IterateChambers(
-				[&heaterSlots, &heaterIndex, &slotType](Chamber* chamber) {
+				[&slots, &heaterIndex, &slotType](Chamber* chamber) {
 					if (chamber->heater == (int)heaterIndex)
 					{
 						switch (slotType)
@@ -442,13 +423,13 @@ namespace OM
 						case SlotType::panel:
 							if (chamber->slot < MaxSlots)
 							{
-								heaterSlots.Add(chamber->slot);
+								slots.Add(chamber->slot);
 							}
 							break;
 						case SlotType::pJob:
 							if (chamber->slotPJob < MaxPendantTools)
 							{
-								heaterSlots.Add(chamber->slotPJob);
+								slots.Add(chamber->slotPJob);
 							}
 							break;
 
@@ -459,32 +440,60 @@ namespace OM
 		if (addTools)
 		{
 			IterateTools(
-				[&heaterSlots, &heaterIndex, &slotType](Tool* tool) {
+				[&slots, &heaterIndex, &slotType](Tool* tool) {
 					if (tool->slot < MaxSlots)
 					{
-						tool->IterateHeaters([&tool, &heaterSlots, &heaterIndex, &slotType](ToolHeater* th, size_t index) {
-							switch (slotType)
+						if (GetHeaterCombineType() == HeaterCombineType::notCombined)
+						{
+							tool->IterateHeaters([&tool, &slots, &heaterIndex, &slotType](ToolHeater* th, size_t index) {
+								switch (slotType)
+								{
+								case SlotType::panel:
+									{
+										const size_t subSlot = tool->slot + index;
+										if (subSlot < MaxSlots && th->heaterIndex == (int) heaterIndex)
+										{
+											slots.Add(subSlot);
+										}
+									}
+									break;
+								case SlotType::pJob:
+									{
+										const size_t subSlot = tool->slotPJob + index;
+										if (subSlot < MaxPendantTools && th->heaterIndex == (int) heaterIndex)
+										{
+											slots.Add(subSlot);
+										}
+									}
+									break;
+								}
+							});
+						}
+						else
+						{
+							if (tool->heaters[0] != nullptr && tool->heaters[0]->heaterIndex == (int) heaterIndex)
 							{
-							case SlotType::panel:
+								switch (slotType)
 								{
-									const size_t subSlot = tool->slot + index;
-									if (subSlot < MaxSlots && th->heaterIndex == (int) heaterIndex)
+								case SlotType::panel:
 									{
-										heaterSlots.Add(subSlot);
+										if (tool->slot < MaxSlots)
+										{
+											slots.Add(tool->slot);
+										}
 									}
-								}
-								break;
-							case SlotType::pJob:
-								{
-									const size_t subSlot = tool->slotPJob + index;
-									if (subSlot < MaxPendantTools && th->heaterIndex == (int) heaterIndex)
+									break;
+								case SlotType::pJob:
 									{
-										heaterSlots.Add(subSlot);
+										if (tool->slotPJob < MaxPendantTools)
+										{
+											slots.Add(tool->slotPJob);
+										}
 									}
+									break;
 								}
-								break;
 							}
-						});
+						}
 					}
 				});
 		}

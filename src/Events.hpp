@@ -90,6 +90,7 @@ enum Event : uint8_t
 	evSetScreensaverTimeout, evAdjustScreensaverTimeout,
 	evSetBabystepAmount, evAdjustBabystepAmount,
 	evSetFeedrate, evAdjustFeedrate,
+	evSetHeaterCombineType,
 
 	evEmergencyStop,
 

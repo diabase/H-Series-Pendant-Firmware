@@ -150,6 +150,8 @@ struct StringTable
 	// Display dimmer types
 	CSTRING displayDimmingNames[(unsigned int)DisplayDimmerType::NumTypes];
 
+	CSTRING heaterCombineTypeNames[(unsigned int)HeaterCombineType::NumTypes];
+
 };
 
 const StringTable LanguageTables[NumLanguages] =
@@ -302,6 +304,12 @@ const StringTable LanguageTables[NumLanguages] =
 			"Never dim",
 			"Dim if idle",
 			"Always dim"
+		},
+
+		// Heater combine types
+		{
+			"Heat's not comb.",
+			"Heaters comb.",
 		}
  	},
 
@@ -452,6 +460,12 @@ const StringTable LanguageTables[NumLanguages] =
 			"Dimmen aus",
 			"Dim bei idle",				// shortened due to space limitations, ideally "Nur im Standby dimmen"
 			"Dimmen ein"
+		},
+
+		// Heater combine types
+		{
+			"Heat's not comb.",
+			"Heaters comb.",
 		}
 	},
 
@@ -602,6 +616,12 @@ const StringTable LanguageTables[NumLanguages] =
 			"Jamais Dim",
 			"Idle Dim",
 			"Toujours Dim"
+		},
+
+		// Heater combine types
+		{
+			"Heat's not comb.",
+			"Heaters comb.",
 		}
 	},
 
@@ -753,6 +773,12 @@ const StringTable LanguageTables[NumLanguages] =
 			"Atenuar en espera",
 			"Siempre Atenuar",
 		},
+
+		// Heater combine types
+		{
+			"Heat's not comb.",
+			"Heaters comb.",
+		}
 	},
 
 	// Czech
@@ -902,159 +928,171 @@ const StringTable LanguageTables[NumLanguages] =
 			"Nikdy neztlumit jas",
 			"Pohasnout při nečinnosti",
 			"Pohasnout vždy"
+		},
+
+		// Heater combine types
+		{
+			"Heat's not comb.",
+			"Heaters comb.",
 		}
 	},
 
-		// Italian
+	// Italian
+	{
+		// ISO-639.1 language code
+		"it",
+
+		// Main page strings
+		"Controlla",
+		"Stampa",
+		"Console",
+		"Pendant",
+		"Configura",
+		"Corrente" THIN_SPACE DEGREE_SYMBOL "C",
+		"Attiva" THIN_SPACE DEGREE_SYMBOL "C",
+		"Standby" THIN_SPACE DEGREE_SYMBOL "C",
+		"Muovi",
+		"Estrusione",
+		"Macro",
+		"FERMA",
+
+		// Print page
+		"Estrusore" THIN_SPACE "%",
+		"Velocità ",							// note space at end
+		"Ventola ",								// note space at end
+		"Tempo rimanente: ",
+		"file ",							// note space at end
+		", filamento ",						// note space at end
+		", layer ",							// note space at end
+		"n/a",
+		"Pausa",
+		"Baby step",
+		"Riprendi",
+		"Cancella",
+		"Stampa di nuovo",
+		"Simula di nuovo",
+		"Imposta",
+
+		// Setup page
+		"Volume ",							// note space at end
+		"Calibra touch",
+		"Specchia schermo",
+		"Inverti schermo",
+		"Tema",
+		"Luminosità -",
+		"Luminosità +",
+		"Salva impostazioni",
+		"Resetta impostazioni",
+		"Salva & Riavvia",
+		"Info timeout ",					// note space at end
+		"Salvaschermo ",					// note space at end
+		"Babystep ",						// note space at end
+		"Feedrate ",						// note space at end
+
+		// Pendant root
+		"Panel",
+		"Jog",
+		"Offset",
+		"Job",
+
+		// Pendant Jog tab
+		"Axis",
+		"Movement",
+		"Current",
+		"Homing",
+		"Measure Z",
+		"Confirm Measure Z",
+		"Tools",
+		"Probe",
+
+		// Pendant Offset tab
+		"Probe Workpiece",
+		"Find Center of Cavity",
+		"Touch-off Plate",
+		"Set Tool Offset",
+		"WCS Offsets",
+		"Edit",
+		"Axes Offsets",
+		"Select WCS",
+		"Set to current",
+
+		// Pendant Job tab
+		"No job running",
+		"Extrd. ",
+		"Spindle RPM ",
+		"Heat Control",
+
+		// Misc
+		"Conferma reset impostazioni",
+		"Confirma eliminazione file",
+		"Sei sicuro?",
+		"Tocca il punto",
+		"Muovi testa",
+		"Quantità estrusione (mm)",
+		"Velocità (mm/s)",
+		"Estrudi",
+		"Retrai",
+		"Baby stepping",
+		"Z offset corrente: ",
+		"Messaggio",
+		"Messaggi",
+		"Versione firmware Panel Due ",	// note space at end
+		"Risposta",
+
+		// File popup
+		"File su card ",				// note the space on the end
+		"Macro",
+		"Errore ",						// note the space at the end
+		" accedendo alla SD card",			// note the space at the start
+		"Nome file: ",
+		"Dimensione: ",
+		"Altezza layer: ",
+		"Altezza oggetto: ",
+		"Filamento necessario: ",
+		"Slice effettuato con: ",
+		"Ultima modifica: ",
+		"Tempo di stampa stimato: ",
+		"Tempo di stampa simulato: ",
+		"Simula",
+
+		// Printer status strings
 		{
-			// ISO-639.1 language code
-			"it",
-
-			// Main page strings
-			"Controlla",
-			"Stampa",
-			"Console",
-			"Pendant",
-			"Configura",
-			"Corrente" THIN_SPACE DEGREE_SYMBOL "C",
-			"Attiva" THIN_SPACE DEGREE_SYMBOL "C",
-			"Standby" THIN_SPACE DEGREE_SYMBOL "C",
-			"Muovi",
-			"Estrusione",
-			"Macro",
-			"FERMA",
-
-			// Print page
-			"Estrusore" THIN_SPACE "%",
-			"Velocità ",							// note space at end
-			"Ventola ",								// note space at end
-			"Tempo rimanente: ",
-			"file ",							// note space at end
-			", filamento ",						// note space at end
-			", layer ",							// note space at end
-			"n/a",
+			"Connettendo",
+			"Idle",
+			"Stampando",
+			"Fermato",
+			"Avviando",
 			"Pausa",
-			"Baby step",
-			"Riprendi",
-			"Cancella",
-			"Stampa di nuovo",
-			"Simula di nuovo",
-			"Imposta",
+			"Occupato",
+			"Pausa",
+			"Riprendendo",
+			"Caricamento firmware",
+			"Cambiando tool",
+			"Simulando",
+			"Standby",
+			"Inizializzando",
+		},
 
-			// Setup page
-			"Volume ",							// note space at end
-			"Calibra touch",
-			"Specchia schermo",
-			"Inverti schermo",
-			"Tema",
-			"Luminosità -",
-			"Luminosità +",
-			"Salva impostazioni",
-			"Resetta impostazioni",
-			"Salva & Riavvia",
-			"Info timeout ",					// note space at end
-			"Salvaschermo ",					// note space at end
-			"Babystep ",						// note space at end
-			"Feedrate ",						// note space at end
+		// Theme names
+		{
+			"Tema chiaro",
+			"Tema scuro 1",
+			"Tema scuro 2"
+		},
 
-			// Pendant root
-			"Panel",
-			"Jog",
-			"Offset",
-			"Job",
+		// Display dimming types
+		{
+			"Non attenuare",
+			"Attenua se idle",
+			"Attenua sempre"
+		},
 
-			// Pendant Jog tab
-			"Axis",
-			"Movement",
-			"Current",
-			"Homing",
-			"Measure Z",
-			"Confirm Measure Z",
-			"Tools",
-			"Probe",
-
-			// Pendant Offset tab
-			"Probe Workpiece",
-			"Find Center of Cavity",
-			"Touch-off Plate",
-			"Set Tool Offset",
-			"WCS Offsets",
-			"Edit",
-			"Axes Offsets",
-			"Select WCS",
-			"Set to current",
-
-			// Pendant Job tab
-			"No job running",
-			"Extrd. ",
-			"Spindle RPM ",
-			"Heat Control",
-
-			// Misc
-			"Conferma reset impostazioni",
-			"Confirma eliminazione file",
-			"Sei sicuro?",
-			"Tocca il punto",
-			"Muovi testa",
-			"Quantità estrusione (mm)",
-			"Velocità (mm/s)",
-			"Estrudi",
-			"Retrai",
-			"Baby stepping",
-			"Z offset corrente: ",
-			"Messaggio",
-			"Messaggi",
-			"Versione firmware Panel Due ",	// note space at end
-			"Risposta",
-
-			// File popup
-			"File su card ",				// note the space on the end
-			"Macro",
-			"Errore ",						// note the space at the end
-			" accedendo alla SD card",			// note the space at the start
-			"Nome file: ",
-			"Dimensione: ",
-			"Altezza layer: ",
-			"Altezza oggetto: ",
-			"Filamento necessario: ",
-			"Slice effettuato con: ",
-			"Ultima modifica: ",
-			"Tempo di stampa stimato: ",
-			"Tempo di stampa simulato: ",
-			"Simula",
-
-			// Printer status strings
-			{
-				"Connettendo",
-				"Idle",
-				"Stampando",
-				"Fermato",
-				"Avviando",
-				"Pausa",
-				"Occupato",
-				"Pausa",
-				"Riprendendo",
-				"Caricamento firmware",
-				"Cambiando tool",
-				"Simulando",
-				"Standby",
-				"Inizializzando",
-			},
-
-			// Theme names
-			{
-				"Tema chiaro",
-				"Tema scuro 1",
-				"Tema scuro 2"
-			},
-
-			// Display dimming types
-			{
-				"Non attenuare",
-				"Attenua se idle",
-				"Attenua sempre"
-			}
-	 	},
+		// Heater combine types
+		{
+			"Heat's not comb.",
+			"Heaters comb.",
+		}
+ 	},
 
 #if USE_CYRILLIC_CHARACTERS
 	// Ukrainian
@@ -1170,6 +1208,12 @@ const StringTable LanguageTables[NumLanguages] =
 			"Ніколи не тьмяніти",
 			"Тьмяніти за бездіяльності",
 			"Завжди тьмяніти"
+		},
+
+		// Heater combine types
+		{
+			"Heat's not comb.",
+			"Heaters comb.",
 		}
 	}
 #endif
